@@ -95,8 +95,6 @@ docker compose logs -f streaming-consumer
 Los logs muestran throughput, p95 y la media de `km_driven` por ventana; a mitad de la corrida del
 productor debería aparecer `⚠ ALERTA DE DRIFT`.
 
-## Qué NO cambia
-
 El pipeline de entrenamiento (Airflow), el registro del modelo (MLflow) y la lógica de
 preprocesamiento/scoring (`common/`, `api/app/predict.py`) son los mismos que en `MLOps1_final`.
 Esta carpeta solo agrega puertas de entrada nuevas; no reentrena ni redefine el modelo.
