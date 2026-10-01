@@ -1,0 +1,41 @@
+services:
+  grpc_service:
+    build:
+      context: ./grpc_service
+      dockerfile: Dockerfile
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./grpc_service:/app
+    command: >
+      sh -c "poetry run python -m grpc_tools.protoc
+      -I./proto --python_out=. --grpc_python_out=. ./proto/ml_service.proto
+      && poetry run python main.py"
+
+  graphql_service:
+    build:
+      context: ./graphql_service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./graphql_service:/app
+    command: poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  rest_service:
+    build:
+      context: ./rest_service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./rest_service:/app
+    command: poetry run uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    volumes:
+      - ./client:/app
+    # El comando para el cliente se ejecutará manualmente desde tu terminal local

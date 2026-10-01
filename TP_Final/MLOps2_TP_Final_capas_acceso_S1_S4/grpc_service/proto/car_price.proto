@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package car_price;
+
+// Mismos campos que common/schemas.py::CarRawInput — el contrato tipado
+// que gRPC exige (mini_tp3_actividad.ipynb) obliga a declarar acá lo que
+// en REST/GraphQL vive como schema de Pydantic.
+message Car {
+  string name = 1;
+  int32 year = 2;
+  int32 km_driven = 3;
+  string fuel = 4;            // Petrol | Diesel | CNG | LPG | Electric
+  string seller_type = 5;     // Individual | Dealer | Trustmark Dealer
+  string transmission = 6;    // Manual | Automatic
+  string owner = 7;           // "First Owner" ... "Test Drive Car"
+  string mileage = 8;         // "23.4 kmpl"
+  string engine = 9;          // "1248 CC"
+  string max_power = 10;      // "74 bhp"
+  string torque = 11;         // "190Nm@ 2000rpm"
+  float seats = 12;
+}
+
+message Prediction {
+  double predicted_price = 1;
+  string model_version = 2;
+}
+
+// Lote de autos, para el método de server-streaming.
+message CarBatch {
+  repeated Car items = 1;
+}
+
+service CarPriceService {
+  rpc Predict(Car) returns (Prediction);                    // unary: 1 -> 1
+  rpc PredictStream(CarBatch) returns (stream Prediction);  // server streaming: N autos -> N precios
+}

@@ -1,0 +1,123 @@
+# Capas de acceso REST/GraphQL/gRPC/Streaming sobre el mismo modelo xgb_best
+# del TP integrador (../MLOps1_final).
+#
+# Este compose NO duplica postgres/minio/mlflow/airflow: se conecta a la red
+# `mlops-net` que ya crea el docker-compose.yml de MLOps1_final y usa el MLflow
+# y MinIO que ya están corriendo ahí. Levantar primero ese stack:
+#
+#   cd ../MLOps1_final && docker compose up -d
+#
+# y recién después este:
+#
+#   cd ../MLOps2_TP_Final_capas_acceso_S1_S4 && docker compose up -d --build
+#
+# REST no es una capa nueva: es la API que ya existía en MLOps1_final/api
+# (mismo Dockerfile, mismo código — ver rest_service/README.md). Se incluye
+# acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este
+# único compose sin chocar con el servicio `api` de MLOps1_final si ese
+# stack también está arriba a la vez.
+
+services:
+  # --- 1. REST (clase1): mismo código que MLOps1_final/api, puerto distinto ---
+  rest:
+    build:
+      context: ../MLOps1_final
+      dockerfile: api/Dockerfile
+    container_name: capas-rest
+    restart: unless-stopped
+    env_file:
+      - ../MLOps1_final/.env
+    ports:
+      - "8010:8000"
+    networks:
+      - mlops-net
+
+  # --- 2. GraphQL (clase2) ---
+  graphql:
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/graphql_service/Dockerfile
+    container_name: capas-graphql
+    restart: unless-stopped
+    env_file:
+      - ../MLOps1_final/.env
+    ports:
+      - "8001:8001"
+    networks:
+      - mlops-net
+
+  # --- 3. gRPC (clase3) ---
+  grpc:
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/grpc_service/Dockerfile
+    container_name: capas-grpc
+    restart: unless-stopped
+    env_file:
+      - ../MLOps1_final/.env
+    ports:
+      - "50051:50051"
+    networks:
+      - mlops-net
+
+  # --- 4. Streaming (clase4): broker + consumidor + productor de prueba ---
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: capas-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+    networks:
+      - mlops-net
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  streaming-consumer:
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/streaming_service/Dockerfile
+    container_name: capas-streaming-consumer
+    restart: unless-stopped
+    command: ["python", "-m", "app.consumer"]
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    env_file:
+      - ../MLOps1_final/.env
+    networks:
+      - mlops-net
+
+  # Productor de prueba: corre una vez y termina (simula tráfico, ver punto 2 del README).
+  # Disparar manualmente con: docker compose run --rm streaming-producer
+  streaming-producer:
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/streaming_service/Dockerfile
+    container_name: capas-streaming-producer
+    command: ["python", "-m", "app.producer"]
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    networks:
+      - mlops-net
+    profiles:
+      - manual  # no arranca con `docker compose up`; solo con `run --rm`
+
+networks:
+  mlops-net:
+    external: true
+    # Nombre real que Docker Compose le da a la red de MLOps1_final: se arma como
+    # "<nombre_de_carpeta>_<nombre_de_red>". Si tu carpeta no se llama exactamente
+    # "MLOps1_final", correr `docker network ls` y ajustar este name.
+    name: mlops1_final_mlops-net
