@@ -1,0 +1,4 @@
+FROM python:3.11-slim
+WORKDIR /mlflow
+RUN pip install --no-cache-dir mlflow==2.13.0 psycopg2-binary==2.9.9 boto3==1.34.115
+EXPOSE 5000
