@@ -1,5 +1,6 @@
 # Capas de acceso REST/GraphQL/gRPC/Streaming sobre el mismo modelo xgb_best
-# del TP integrador (../MLOps1_final), más el entrenamiento federado (clase5).
+# del TP integrador (../MLOps1_final), más el entrenamiento federado (clase5)
+# y el Data Lake (clase6).
 #
 # Este compose NO duplica postgres/minio/mlflow/airflow: se conecta a la red
 # `mlops-net` que ya crea el docker-compose.yml de MLOps1_final y usa el MLflow
@@ -183,6 +184,22 @@ services:
       <<: *federado-env
       CLIENTE_ID: "2"
     depends_on: [fl-servidor]
+
+  # --- 6. Data Lake (clase6): prepara el bucket `datalake` y la metadata del modelo ---
+  # Se corre a mano (profile "lake"), una vez y después de cada entrenamiento nuevo:
+  #   docker compose --profile lake run --rm lake-preparar
+  lake-preparar:
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final/datalake/Dockerfile
+    container_name: capas-lake-preparar
+    restart: "no"
+    env_file:
+      - ../MLOps1_final/.env
+    networks:
+      - mlops-net
+    profiles:
+      - lake
 
 networks:
   mlops-net:
