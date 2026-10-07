@@ -1,5 +1,5 @@
 # Capas de acceso REST/GraphQL/gRPC/Streaming sobre el mismo modelo xgb_best
-# del TP integrador (../MLOps1_final).
+# del TP integrador (../MLOps1_final), más el entrenamiento federado (clase5).
 #
 # Este compose NO duplica postgres/minio/mlflow/airflow: se conecta a la red
 # `mlops-net` que ya crea el docker-compose.yml de MLOps1_final y usa el MLflow
@@ -16,6 +16,31 @@
 # acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este
 # único compose sin chocar con el servicio `api` de MLOps1_final si ese
 # stack también está arriba a la vez.
+
+# Configuración común de los servicios de aprendizaje federado (clase5).
+# PARTICION (iid | no_iid) y SIGMA (ruido) se pueden cambiar al lanzar, ver README.
+x-federado-env: &federado-env
+  NUM_CLIENTES: "3"
+  RONDAS: "20"
+  EPOCAS_LOCALES: "50"
+  LR: "0.01"
+  PARTICION: ${PARTICION:-iid}
+  SIGMA: ${SIGMA:-0}
+  SERVIDOR: fl-servidor:8080
+
+x-federado: &federado
+  build:
+    context: ..
+    dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/federated_service/Dockerfile
+  image: capas-federado
+  env_file:
+    - ../MLOps1_final/.env
+  environment: *federado-env
+  restart: "no"
+  networks:
+    - mlops-net
+  profiles:
+    - federado
 
 services:
   # --- 1. REST (clase1): mismo código que MLOps1_final/api, puerto distinto ---
@@ -113,6 +138,47 @@ services:
       - mlops-net
     profiles:
       - manual  # no arranca con `docker compose up`; solo con `run --rm`
+
+  # --- 5. Aprendizaje federado (clase5): 1 servidor + 3 clientes (concesionarias) ---
+  # No es una capa de acceso: es otra forma de ENTRENAR. No arranca con `docker compose up`
+  # (profile "federado"); se corre a mano, ver la sección 5 del README.
+  # Todos usan la misma imagen; cambia solo el comando y el número de cliente.
+  fl-particionar:
+    <<: *federado
+    container_name: capas-fl-particionar
+    command: ["python", "-m", "app.particionar"]
+
+  fl-servidor:
+    <<: *federado
+    container_name: capas-fl-servidor
+    command: ["python", "-m", "app.servidor"]
+
+  fl-cliente-0:
+    <<: *federado
+    container_name: capas-fl-cliente-0
+    command: ["python", "-m", "app.cliente"]
+    environment:
+      <<: *federado-env
+      CLIENTE_ID: "0"
+    depends_on: [fl-servidor]
+
+  fl-cliente-1:
+    <<: *federado
+    container_name: capas-fl-cliente-1
+    command: ["python", "-m", "app.cliente"]
+    environment:
+      <<: *federado-env
+      CLIENTE_ID: "1"
+    depends_on: [fl-servidor]
+
+  fl-cliente-2:
+    <<: *federado
+    container_name: capas-fl-cliente-2
+    command: ["python", "-m", "app.cliente"]
+    environment:
+      <<: *federado-env
+      CLIENTE_ID: "2"
+    depends_on: [fl-servidor]
 
 networks:
   mlops-net:

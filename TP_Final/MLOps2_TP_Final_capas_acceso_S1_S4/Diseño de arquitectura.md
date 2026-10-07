@@ -8,9 +8,9 @@ El pipeline de entrenamiento y el modelo registrado (`xgb_best` en MLflow) no ca
 
 Arriba, el núcleo que no cambia: el pipeline de datos y entrenamiento, y el modelo servido desde el registry. Abajo, los cuatro caminos nuevos hacia ese núcleo — el protocolo y el patrón de tráfico cambian; el modelo detrás es siempre el mismo.
 
-![Diagrama de arquitectura: núcleo compartido (Airflow → MLflow Registry → Modelo cargado) con cuatro capas de acceso independientes — API REST, GraphQL, gRPC y Streaming — cada una con su patrón de tráfico y su tipo de cliente. La capa de Streaming se expande en su propio mecanismo: productor → consumidor → ventana deslizante → alerta de drift.](diagrama-arquitectura.png)
+![Diagrama de arquitectura: núcleo compartido (Airflow → MLflow Registry → Modelo cargado) con cuatro capas de acceso independientes — API REST, GraphQL, gRPC y Streaming — cada una con su patrón de tráfico y su tipo de cliente. La capa de Streaming se expande en su propio mecanismo: productor → consumidor → ventana deslizante → alerta de drift. Abajo, el entrenamiento federado: un servidor Flower que coordina rondas de FedAvg con tres concesionarias y registra el modelo aparte en MLflow.](diagrama-arquitectura.png)
 
-*El pipeline de Airflow entrena y registra el modelo en MLflow una sola vez; las cuatro capas de abajo son formas distintas de invocarlo. Streaming es la excepción estructural: no espera una pregunta, consume un flujo y agrega métricas por ventana hasta disparar una alerta.*
+*El pipeline de Airflow entrena y registra el modelo en MLflow una sola vez; las cuatro capas de abajo son formas distintas de invocarlo. Streaming es la excepción estructural: no espera una pregunta, consume un flujo y agrega métricas por ventana hasta disparar una alerta. El bloque de abajo no es una capa de acceso: es el entrenamiento federado de la clase 5.*
 
 ## Las cuatro capas, en detalle
 
@@ -51,3 +51,34 @@ Contrato tipado (`.proto`), canal persistente, payload binario. Pensado para que
 No hay cliente que pregunte: un consumidor puntúa cada evento a medida que llega desde un topic, y agrega throughput, p95 y un indicador de drift por ventana — disparando una alerta si la distribución de entrada se corre de lo esperado.
 
 `clase4/Practica/mini_tp4_actividad.ipynb`
+
+## Entrenamiento federado (clase 5)
+
+**Otra forma de entrenar, no otra puerta de entrada**
+*por rondas · los datos no se mueven*
+
+Las cuatro capas de arriba cambian cómo se **pide** una predicción. El federado cambia cómo se
+**entrena** el modelo: pensado para el caso en que cada concesionaria tiene sus propios datos de
+ventas y no quiere (o no puede) compartirlos con las demás.
+
+- Un **servidor** Flower coordina rondas de **FedAvg**; tres **clientes** (concesionarias), cada
+  uno en su propio contenedor, entrenan con sus datos y devuelven solo los pesos del modelo.
+- Antes de entrenar, el servidor arma un esquema común (marcas principales, media y desvío)
+  pidiendo a los clientes solo **conteos y sumas**, nunca filas.
+- Cada ronda se mide el error con un set de test del servidor y se registra en **MLflow**, junto
+  con la comparación contra el mismo modelo entrenado de forma centralizada.
+- El modelo resultante se registra como `linreg_federado`, **separado** de `xgb_best`: es un
+  experimento de entrenamiento, no reemplaza al modelo que sirven las cuatro capas.
+
+`clase5/mini_tp5_federado_actividad.ipynb`
+
+## Diagrama
+
+El diagrama se edita en [`diagrama-arquitectura.svg`](./diagrama-arquitectura.svg) (texto, con
+comentarios de cómo sumar una clase nueva) y se exporta a PNG con Edge, desde esta carpeta:
+
+```powershell
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --hide-scrollbars --window-size=1150,1330 --screenshot="$pwd\diagrama-arquitectura.png" "$pwd\diagrama-arquitectura.svg"
+```
+
+Si se agranda el diagrama, cambiar `--window-size` por el nuevo ancho y alto del SVG.

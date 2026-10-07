@@ -13,14 +13,15 @@ TPs/
 ├── clase3/      Mini TP 3: modelo servido con gRPC
 ├── clase4/      Mini TP 4: modelo aplicado sobre un flujo de datos (streaming)
 ├── clase5/      Mini TP 5: aprendizaje federado (FedAvg)
+├── clase6/      Mini TP 6: modelo guardado y servido desde un Data Lake (MinIO)
 └── TP_Final/
     ├── MLOps1_final/                         TP final de MLOps 1 (base de referencia)
     └── MLOps2_TP_Final_capas_acceso_S1_S4/   TP final de MLOps 2 (en progreso)
 ```
 
-## Mini TPs (clase 1 a clase 5)
+## Mini TPs (clase 1 a clase 6)
 
-Son 5 trabajos chicos, uno por clase. Todos están terminados. Cada uno es un notebook de Jupyter.
+Son 6 trabajos chicos, uno por clase. Todos están terminados. Cada uno es un notebook de Jupyter.
 
 | Carpeta | Notebook | Tema |
 |---|---|---|
@@ -29,6 +30,7 @@ Son 5 trabajos chicos, uno por clase. Todos están terminados. Cada uno es un no
 | clase3 | `mini_tp3_actividad.ipynb` | Servir el modelo con gRPC |
 | clase4 | `mini_tp4_actividad.ipynb` | Predecir sobre un flujo continuo de eventos |
 | clase5 | `mini_tp5_federado_actividad.ipynb` | Entrenar con aprendizaje federado y comparar contra el entrenamiento normal |
+| clase6 | `mini_tp6_actividad.ipynb` | Subir el modelo a un Data Lake (MinIO) y cargarlo desde ahí para predecir |
 
 ## TP Final
 
@@ -53,9 +55,11 @@ Ofrece **4 formas distintas de pedirle predicciones al mismo modelo**:
 | gRPC | 50051 | Clase 3 |
 | Streaming (Redpanda) | - | Clase 4 |
 
+Además incluye el **entrenamiento federado** de la clase 5: un servidor y 3 clientes en Docker, con Flower, que entrenan un modelo sin juntar los datos en un solo lugar.
+
 - Todas usan el mismo código de predicción de MLOps 1, sin copiarlo.
 - Necesita que el stack de MLOps1_final esté corriendo y con el modelo ya entrenado.
 - Cómo levantarlo y probarlo: ver [TP_Final/MLOps2_TP_Final_capas_acceso_S1_S4/README.md](TP_Final/MLOps2_TP_Final_capas_acceso_S1_S4/README.md).
 - Diseño general: ver [Diseño de arquitectura.md](TP_Final/MLOps2_TP_Final_capas_acceso_S1_S4/Diseño%20de%20arquitectura.md).
 
-> **Estado:** incluye lo visto en las clases 1 a 4. Lo de la clase 5 (aprendizaje federado) **todavía no está agregado** al TP final.
+> **Estado:** incluye lo visto en las clases 1 a 5. Lo de la clase 6 (Data Lake) **todavía no está agregado** al TP final.

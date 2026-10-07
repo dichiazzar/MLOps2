@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="1330" viewBox="0 0 1150 1330">
+  <!--
+    Fuente editable del diagrama de arquitectura del TP integrador.
+    Para regenerar el PNG: ver la sección "Diagrama" al final de "Diseño de arquitectura.md".
+    Para sumar una clase nueva: agregar su bloque (copiar uno existente), su color en
+    <style> y su entrada en la leyenda, y agrandar height/viewBox si hace falta.
+  -->
+  <defs>
+    <style>
+      .t   { font-family: "Segoe UI", Arial, sans-serif; }
+      .m   { font-family: Consolas, "Courier New", monospace; }
+      .w   { fill: #ece9e2; }
+      .mut { fill: #b3aea4; }
+      .c-core { stroke: #ece9e2; fill: #22211f; }
+      .c-rest { stroke: #7aa8e0; fill: #1d2532; }  .f-rest { fill: #8cb9f0; }
+      .c-gql  { stroke: #d08ee0; fill: #2b2131; }  .f-gql  { fill: #e3a3f2; }
+      .c-grpc { stroke: #dcae4f; fill: #30281a; }  .f-grpc { fill: #efc061; }
+      .c-str  { stroke: #e3866a; fill: #30221d; }  .f-str  { fill: #ef967b; }
+      .c-fed  { stroke: #8cc77a; fill: #1e2a1c; }  .f-fed  { fill: #a3db92; }
+      .c-mod  { stroke: #6fc3a0; fill: #1d2c26; }  .f-mod  { fill: #7fd4b0; }
+      .box  { stroke-width: 1.6; }
+      .ln   { fill: none; stroke-width: 1.6; }
+      .dash { stroke-dasharray: 5 4; }
+      .tag  { font-size: 11px; }
+    </style>
+    <marker id="aw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ece9e2"/></marker>
+    <marker id="as" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e3866a"/></marker>
+    <marker id="af" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8cc77a"/></marker>
+  </defs>
+
+  <rect width="1150" height="1330" fill="#1b1a18"/>
+  <rect x="12" y="12" width="1126" height="1262" rx="14" fill="#211f1d" stroke="#363431"/>
+
+  <!-- ===================== NÚCLEO COMPARTIDO ===================== -->
+  <rect class="box c-core" x="84" y="42" width="232" height="72" rx="10"/>
+  <text class="t w" x="200" y="73" text-anchor="middle" font-size="17" font-weight="600">Airflow</text>
+  <text class="m mut" x="200" y="96" text-anchor="middle" font-size="14">DAG: extract → train</text>
+
+  <rect class="box c-core" x="470" y="42" width="232" height="72" rx="10"/>
+  <text class="t w" x="586" y="73" text-anchor="middle" font-size="17" font-weight="600">MLflow Registry</text>
+  <text class="m mut" x="586" y="96" text-anchor="middle" font-size="14">xgb_best · Production</text>
+
+  <rect class="box c-mod" x="856" y="42" width="232" height="72" rx="10"/>
+  <text class="t f-mod" x="972" y="73" text-anchor="middle" font-size="17" font-weight="600">Modelo cargado</text>
+  <text class="m f-mod" x="972" y="96" text-anchor="middle" font-size="14">una sola vez · .predict()</text>
+
+  <line class="ln" stroke="#ece9e2" x1="316" y1="78" x2="466" y2="78" marker-end="url(#aw)"/>
+  <text class="m mut" x="391" y="66" text-anchor="middle" font-size="14">registra</text>
+  <line class="ln" stroke="#ece9e2" x1="702" y1="78" x2="852" y2="78" marker-end="url(#aw)"/>
+  <text class="m mut" x="777" y="66" text-anchor="middle" font-size="14">sirve</text>
+
+  <text class="m mut" x="586" y="146" text-anchor="middle" font-size="14" letter-spacing="1">— NÚCLEO COMPARTIDO: SIN CAMBIOS —</text>
+
+  <!-- reparto hacia las 4 capas -->
+  <path class="ln" stroke="#ece9e2" d="M972,114 V180 H170"/>
+  <line class="ln" stroke="#ece9e2" x1="170" y1="180" x2="170" y2="201" marker-end="url(#aw)"/>
+  <line class="ln" stroke="#ece9e2" x1="440" y1="180" x2="440" y2="201" marker-end="url(#aw)"/>
+  <line class="ln" stroke="#ece9e2" x1="710" y1="180" x2="710" y2="201" marker-end="url(#aw)"/>
+  <line class="ln" stroke="#ece9e2" x1="972" y1="180" x2="972" y2="201" marker-end="url(#aw)"/>
+
+  <!-- ===================== CAPAS DE ACCESO (clases 1 a 4) ===================== -->
+  <!-- REST · clase 1 -->
+  <rect class="box c-rest" x="67" y="205" width="206" height="166" rx="10"/>
+  <text class="t f-rest" x="170" y="232" text-anchor="middle" font-size="17" font-weight="600">API REST</text>
+  <text class="m f-rest" x="170" y="255" text-anchor="middle" font-size="13">POST /predict</text>
+  <line x1="92" y1="275" x2="248" y2="275" stroke="#7aa8e0" stroke-opacity=".45"/>
+  <text class="t w" x="170" y="298" text-anchor="middle" font-size="14">petición → respuesta</text>
+  <text class="t w" x="170" y="320" text-anchor="middle" font-size="14">JSON · un cliente por vez</text>
+  <text class="m f-rest tag" x="170" y="356" text-anchor="middle">clase 1 · puerto 8010</text>
+  <text class="t mut" x="170" y="396" text-anchor="middle" font-size="13">cliente externo /</text>
+  <text class="t mut" x="170" y="416" text-anchor="middle" font-size="13">integración con terceros</text>
+
+  <!-- GraphQL · clase 2 -->
+  <rect class="box c-gql" x="337" y="205" width="206" height="166" rx="10"/>
+  <text class="t f-gql" x="440" y="232" text-anchor="middle" font-size="17" font-weight="600">GraphQL</text>
+  <text class="m f-gql" x="440" y="255" text-anchor="middle" font-size="13">query { modelInfo { … } }</text>
+  <line x1="362" y1="275" x2="518" y2="275" stroke="#d08ee0" stroke-opacity=".45"/>
+  <text class="t w" x="440" y="298" text-anchor="middle" font-size="14">consulta flexible</text>
+  <text class="t w" x="440" y="320" text-anchor="middle" font-size="14">el cliente elige campos</text>
+  <text class="m f-gql tag" x="440" y="356" text-anchor="middle">clase 2 · puerto 8001</text>
+  <text class="t mut" x="440" y="396" text-anchor="middle" font-size="13">dashboard interno /</text>
+  <text class="t mut" x="440" y="416" text-anchor="middle" font-size="13">métricas + metadata a medida</text>
+
+  <!-- gRPC · clase 3 -->
+  <rect class="box c-grpc" x="607" y="205" width="206" height="166" rx="10"/>
+  <text class="t f-grpc" x="710" y="232" text-anchor="middle" font-size="17" font-weight="600">gRPC</text>
+  <text class="m f-grpc" x="710" y="255" text-anchor="middle" font-size="13">rpc Predict(Car)</text>
+  <line x1="632" y1="275" x2="788" y2="275" stroke="#dcae4f" stroke-opacity=".45"/>
+  <text class="t w" x="710" y="298" text-anchor="middle" font-size="14">binario · contrato .proto</text>
+  <text class="t w" x="710" y="320" text-anchor="middle" font-size="14">canal persistente</text>
+  <text class="m f-grpc tag" x="710" y="356" text-anchor="middle">clase 3 · puerto 50051</text>
+  <text class="t mut" x="710" y="396" text-anchor="middle" font-size="13">servicio a servicio /</text>
+  <text class="t mut" x="710" y="416" text-anchor="middle" font-size="13">alto volumen, baja latencia</text>
+
+  <!-- Streaming · clase 4 -->
+  <rect class="box c-str" x="877" y="205" width="206" height="166" rx="10"/>
+  <text class="t f-str" x="980" y="232" text-anchor="middle" font-size="17" font-weight="600">Streaming</text>
+  <text class="m f-str" x="980" y="255" text-anchor="middle" font-size="13">topic: autos</text>
+  <line x1="902" y1="275" x2="1058" y2="275" stroke="#e3866a" stroke-opacity=".45"/>
+  <text class="t w" x="980" y="298" text-anchor="middle" font-size="14">flujo continuo</text>
+  <text class="t w" x="980" y="320" text-anchor="middle" font-size="14">sin cliente que pregunte</text>
+  <text class="m f-str tag" x="980" y="356" text-anchor="middle">clase 4 · Redpanda</text>
+  <text class="t mut" x="922" y="396" text-anchor="end" font-size="13">eventos en vivo /</text>
+  <text class="t mut" x="922" y="416" text-anchor="end" font-size="13">scoring + drift online</text>
+
+  <!-- detalle de streaming -->
+  <line class="ln" stroke="#e3866a" x1="980" y1="371" x2="980" y2="462" marker-end="url(#as)"/>
+  <rect class="box c-str" x="830" y="466" width="156" height="58" rx="9"/>
+  <text class="t f-str" x="908" y="490" text-anchor="middle" font-size="14" font-weight="600">Productor</text>
+  <text class="m f-str" x="908" y="511" text-anchor="middle" font-size="12">Kafka / Redpanda</text>
+
+  <line class="ln" stroke="#e3866a" x1="830" y1="495" x2="604" y2="495" marker-end="url(#as)"/>
+  <rect class="box c-str" x="418" y="466" width="182" height="58" rx="9"/>
+  <text class="t f-str" x="509" y="490" text-anchor="middle" font-size="14" font-weight="600">Consumidor</text>
+  <text class="m f-str" x="509" y="511" text-anchor="middle" font-size="12">scoring evento a evento</text>
+
+  <line class="ln" stroke="#e3866a" x1="418" y1="495" x2="256" y2="495" marker-end="url(#as)"/>
+  <text class="m f-str" x="337" y="484" text-anchor="middle" font-size="12">usa</text>
+  <rect class="box c-str dash" x="70" y="466" width="182" height="58" rx="9" fill="none"/>
+  <text class="t f-str" x="161" y="490" text-anchor="middle" font-size="14" font-weight="600">mismo modelo</text>
+  <text class="m f-str" x="161" y="511" text-anchor="middle" font-size="12">xgb_best</text>
+
+  <line class="ln" stroke="#e3866a" x1="509" y1="524" x2="509" y2="554" marker-end="url(#as)"/>
+  <rect class="box c-str" x="380" y="558" width="258" height="68" rx="9"/>
+  <text class="t f-str" x="509" y="584" text-anchor="middle" font-size="14" font-weight="600">Ventana deslizante (1s)</text>
+  <text class="m f-str" x="509" y="606" text-anchor="middle" font-size="12">throughput · p95 · media de km</text>
+
+  <line class="ln" stroke="#e3866a" x1="509" y1="626" x2="509" y2="652" marker-end="url(#as)"/>
+  <text class="m f-str" x="520" y="644" font-size="12">si cruza umbral</text>
+  <rect x="405" y="656" width="208" height="54" rx="27" fill="#e3866a"/>
+  <text class="t" x="509" y="689" text-anchor="middle" font-size="15" font-weight="700" fill="#2a1b16">⚠ Alerta de drift</text>
+
+  <text class="t mut" x="509" y="748" text-anchor="middle" font-size="13">única capa sin cliente que pregunta:</text>
+  <text class="t mut" x="509" y="768" text-anchor="middle" font-size="13">el modelo puntúa a medida que los eventos llegan</text>
+
+  <!-- ===================== ENTRENAMIENTO FEDERADO (clase 5) ===================== -->
+  <line x1="40" y1="800" x2="1110" y2="800" stroke="#363431"/>
+  <text class="m f-fed" x="575" y="832" text-anchor="middle" font-size="14" letter-spacing="1">— ENTRENAMIENTO FEDERADO: OTRA FORMA DE ENTRENAR, LOS DATOS NO SE MUEVEN —</text>
+
+  <rect class="box c-fed" x="420" y="858" width="310" height="86" rx="10"/>
+  <text class="t f-fed" x="575" y="887" text-anchor="middle" font-size="17" font-weight="600">Servidor Flower</text>
+  <text class="m f-fed" x="575" y="909" text-anchor="middle" font-size="13">FedAvg · 20 rondas</text>
+  <text class="m f-fed tag" x="575" y="932" text-anchor="middle">clase 5 · profile federado</text>
+
+  <line class="ln" stroke="#8cc77a" x1="730" y1="901" x2="856" y2="901" marker-end="url(#af)"/>
+  <text class="m f-fed" x="793" y="890" text-anchor="middle" font-size="12">registra</text>
+  <rect class="box c-fed dash" x="860" y="858" width="230" height="86" rx="10" fill="none"/>
+  <text class="t f-fed" x="975" y="887" text-anchor="middle" font-size="15" font-weight="600">MLflow</text>
+  <text class="m f-fed" x="975" y="908" text-anchor="middle" font-size="13">linreg_federado</text>
+  <text class="t mut" x="975" y="929" text-anchor="middle" font-size="12">aparte: no reemplaza a xgb_best</text>
+
+  <rect class="box c-fed dash" x="60" y="858" width="300" height="86" rx="10" fill="none"/>
+  <text class="t f-fed" x="210" y="887" text-anchor="middle" font-size="15" font-weight="600">Esquema común</text>
+  <text class="t w" x="210" y="909" text-anchor="middle" font-size="13">marcas, media y desvío</text>
+  <text class="t mut" x="210" y="929" text-anchor="middle" font-size="12">a partir de conteos y sumas, nunca filas</text>
+  <line class="ln" stroke="#8cc77a" x1="420" y1="901" x2="364" y2="901" marker-end="url(#af)"/>
+  <text class="m f-fed" x="392" y="890" text-anchor="middle" font-size="12">arma</text>
+
+  <!-- ida y vuelta servidor ↔ clientes -->
+  <line class="ln" stroke="#8cc77a" x1="450" y1="948" x2="330" y2="1026" marker-start="url(#af)" marker-end="url(#af)"/>
+  <line class="ln" stroke="#8cc77a" x1="575" y1="948" x2="575" y2="1026" marker-start="url(#af)" marker-end="url(#af)"/>
+  <line class="ln" stroke="#8cc77a" x1="700" y1="948" x2="820" y2="1026" marker-start="url(#af)" marker-end="url(#af)"/>
+  <text class="m f-fed" x="585" y="984" font-size="12">↓ modelo global</text>
+  <text class="m f-fed" x="585" y="1002" font-size="12">↑ pesos + nº de autos</text>
+
+  <rect class="box c-fed" x="200" y="1030" width="230" height="96" rx="10"/>
+  <text class="t f-fed" x="315" y="1057" text-anchor="middle" font-size="15" font-weight="600">Concesionaria 0</text>
+  <text class="m f-fed" x="315" y="1079" text-anchor="middle" font-size="12">s3://federado/…/cliente_0</text>
+  <text class="t w" x="315" y="1103" text-anchor="middle" font-size="13">entrena con sus autos</text>
+
+  <rect class="box c-fed" x="460" y="1030" width="230" height="96" rx="10"/>
+  <text class="t f-fed" x="575" y="1057" text-anchor="middle" font-size="15" font-weight="600">Concesionaria 1</text>
+  <text class="m f-fed" x="575" y="1079" text-anchor="middle" font-size="12">s3://federado/…/cliente_1</text>
+  <text class="t w" x="575" y="1103" text-anchor="middle" font-size="13">entrena con sus autos</text>
+
+  <rect class="box c-fed" x="720" y="1030" width="230" height="96" rx="10"/>
+  <text class="t f-fed" x="835" y="1057" text-anchor="middle" font-size="15" font-weight="600">Concesionaria 2</text>
+  <text class="m f-fed" x="835" y="1079" text-anchor="middle" font-size="12">s3://federado/…/cliente_2</text>
+  <text class="t w" x="835" y="1103" text-anchor="middle" font-size="13">entrena con sus autos</text>
+
+  <text class="t mut" x="575" y="1158" text-anchor="middle" font-size="13">cada concesionaria entrena con sus propios datos y solo comparte pesos; el servidor los promedia</text>
+  <text class="t mut" x="575" y="1178" text-anchor="middle" font-size="13">datos repartidos iid o no_iid (por precio) · con SIGMA &gt; 0 suma ruido a los pesos (privacidad diferencial)</text>
+
+  <!-- ===================== PIE ===================== -->
+  <line x1="32" y1="1204" x2="1118" y2="1204" stroke="#363431"/>
+  <text class="t mut" x="32" y="1232" font-size="14.5">El pipeline de Airflow entrena y registra el modelo en MLflow una sola vez; las cuatro capas de acceso son formas distintas de invocarlo.</text>
+  <text class="t mut" x="32" y="1255" font-size="14.5">Streaming no espera una pregunta: consume un flujo. El federado no es una capa de acceso: es otra forma de entrenar, sin juntar los datos.</text>
+
+  <!-- leyenda -->
+  <g class="m" font-size="14">
+    <circle cx="18" cy="1302" r="5.5" fill="#7aa8e0"/><text class="mut" x="30" y="1307">REST</text>
+    <circle cx="96" cy="1302" r="5.5" fill="#d08ee0"/><text class="mut" x="108" y="1307">GraphQL</text>
+    <circle cx="200" cy="1302" r="5.5" fill="#dcae4f"/><text class="mut" x="212" y="1307">gRPC</text>
+    <circle cx="276" cy="1302" r="5.5" fill="#e3866a"/><text class="mut" x="288" y="1307">Streaming</text>
+    <circle cx="390" cy="1302" r="5.5" fill="#8cc77a"/><text class="mut" x="402" y="1307">Federado</text>
+  </g>
+</svg>
