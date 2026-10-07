@@ -8,9 +8,9 @@ El pipeline de entrenamiento y el modelo registrado (`xgb_best` en MLflow) no ca
 
 Arriba, el núcleo que no cambia: el pipeline de datos y entrenamiento, y el modelo servido desde el registry. Abajo, los cuatro caminos nuevos hacia ese núcleo — el protocolo y el patrón de tráfico cambian; el modelo detrás es siempre el mismo.
 
-![Diagrama de arquitectura: núcleo compartido (Airflow → MLflow Registry → Modelo cargado) con cuatro capas de acceso independientes — API REST, GraphQL, gRPC y Streaming — cada una con su patrón de tráfico y su tipo de cliente. La capa de Streaming se expande en su propio mecanismo: productor → consumidor → ventana deslizante → alerta de drift. Abajo, el entrenamiento federado: un servidor Flower que coordina rondas de FedAvg con tres concesionarias y registra el modelo aparte en MLflow.](diagrama-arquitectura.png)
+![Diagrama de arquitectura: núcleo compartido (Airflow → MLflow Registry → Modelo cargado) con cuatro capas de acceso independientes — API REST, GraphQL, gRPC y Streaming — cada una con su patrón de tráfico y su tipo de cliente. La capa de Streaming se expande en su propio mecanismo: productor → consumidor → ventana deslizante → alerta de drift. Abajo, el entrenamiento federado: un servidor Flower que coordina rondas de FedAvg con tres concesionarias y registra el modelo aparte en MLflow. Al final, el Data Lake en MinIO: el bucket datalake con las zonas raw y curated, y mlflow-artifacts como zona de modelos.](diagrama-arquitectura.png)
 
-*El pipeline de Airflow entrena y registra el modelo en MLflow una sola vez; las cuatro capas de abajo son formas distintas de invocarlo. Streaming es la excepción estructural: no espera una pregunta, consume un flujo y agrega métricas por ventana hasta disparar una alerta. El bloque de abajo no es una capa de acceso: es el entrenamiento federado de la clase 5.*
+*El pipeline de Airflow entrena y registra el modelo en MLflow una sola vez; las cuatro capas de abajo son formas distintas de invocarlo. Streaming es la excepción estructural: no espera una pregunta, consume un flujo y agrega métricas por ventana hasta disparar una alerta. Los bloques de abajo no son capas de acceso: el entrenamiento federado (clase 5) y el Data Lake donde quedan guardados los datos (clase 6).*
 
 ## Las cuatro capas, en detalle
 
@@ -72,13 +72,36 @@ ventas y no quiere (o no puede) compartirlos con las demás.
 
 `clase5/mini_tp5_federado_actividad.ipynb`
 
+## Data Lake (clase 6)
+
+**El piso común de la plataforma**
+*datos en reposo · zonas · un dueño por bucket*
+
+Las capas de arriba mueven datos (pedidos, eventos, pesos). El Data Lake es donde esos datos
+**quedan guardados**, organizados por zonas para no convertirse en un depósito desordenado. Se arma
+sobre el mismo MinIO del TP integrador:
+
+- **Bucket `datalake` (datos):** zona `raw` con el dataset crudo y los eventos de streaming, y zona
+  `curated` con las features listas para entrenar, en Parquet.
+- **Bucket `mlflow-artifacts` (modelos):** MLflow ya guardaba ahí cada versión de `xgb_best`.
+  Funciona como la zona de modelos del lake, y MLflow sigue siendo el registro de qué versión está
+  en producción. No se crea un segundo registro, para que no puedan contradecirse.
+- **Metadata del modelo:** las marcas principales y el orden de las columnas se guardan una vez en
+  el mismo run de MLflow que el modelo. Las capas la leen al arrancar en vez de recalcularla.
+- **Streaming con memoria:** el consumidor guarda cada evento con su predicción en `raw`, separado
+  por fecha. Redpanda borra los eventos al vencer la retención; el lake los conserva.
+- **GraphQL sobre el lake:** la query `prediccionesStreaming` lee esos archivos, usando el lake como
+  origen de verdad.
+
+`clase6/mini_tp6_actividad.ipynb`
+
 ## Diagrama
 
 El diagrama se edita en [`diagrama-arquitectura.svg`](./diagrama-arquitectura.svg) (texto, con
 comentarios de cómo sumar una clase nueva) y se exporta a PNG con Edge, desde esta carpeta:
 
 ```powershell
-& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --hide-scrollbars --window-size=1150,1330 --screenshot="$pwd\diagrama-arquitectura.png" "$pwd\diagrama-arquitectura.svg"
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --hide-scrollbars --window-size=1150,1592 --screenshot="$pwd\diagrama-arquitectura.png" "$pwd\diagrama-arquitectura.svg"
 ```
 
 Si se agranda el diagrama, cambiar `--window-size` por el nuevo ancho y alto del SVG.
