@@ -164,8 +164,9 @@ comparación contra el centralizado y el modelo registrado.
 | Federado non-IID | 0.2700 | +0.0036 |
 | Federado IID con ruido (`SIGMA=0.05`) | 0.4653 | +0.1989 |
 
-Mismas conclusiones que en `mini_tp5`: con datos IID federar no cuesta error; con non-IID cuesta
-un poco y la curva es menos estable; y la privacidad diferencial sí tiene un costo alto.
+Con datos IID federar no cuesta error. Con non-IID el error baja más lento y termina un poco más
+alto, pero la curva baja sin saltos. La privacidad diferencial sí tiene un costo alto, y es la
+única variante donde el error sube y baja entre rondas.
 La línea de base centralizada usa el mismo total de pasos de entrenamiento que cada cliente
 (20 × 50 = 1000 épocas), para que la comparación sea justa.
 
@@ -176,3 +177,5 @@ La línea de base centralizada usa el mismo total de pasos de entrenamiento que 
   de conteos y sumas. En el mini TP se calculaban con todos los datos juntos, algo que en un
   federado real no se puede hacer.
 - El preprocesamiento se reusa de `common/` en lugar de estar copiado en el notebook.
+- En cada ronda participan **los 3 clientes**. En el mini TP participaban 2 de 5 elegidos al azar,
+  y por eso allá la curva non-IID saltaba según qué clientes tocaban en cada ronda.
