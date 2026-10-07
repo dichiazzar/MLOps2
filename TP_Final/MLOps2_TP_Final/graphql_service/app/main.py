@@ -4,16 +4,24 @@ No reimplementa la carga ni el scoring del modelo: reusa `load_production_model`
 `predict_price` de `api/app/predict.py` (MLOps1_final), igual que hace la API REST.
 La diferencia con REST es el contrato: acá el cliente arma su propia consulta y
 elige qué campos quiere de vuelta, en vez de recibir siempre la misma forma fija.
+
+Clase 6: la consulta `prediccionesStreaming` lee del Data Lake las predicciones que
+guardó la capa de streaming (s3://datalake/raw/streaming/fecha=.../). GraphQL usa
+el lake como origen de verdad para datos que no viven en ningún otro servicio.
 """
 
 import logging
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Optional
+
+import pandas as pd
 
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 
+from app import lago
 from app.predict import ModelState, load_production_model, predict_price
 from common.schemas import (
     CarRawInput,
@@ -75,6 +83,46 @@ class ModelInfo:
     top_brands: list[str]
 
 
+@strawberry.type
+class PrediccionStreaming:
+    name: str
+    year: int
+    km_driven: int
+    fuel: str
+    predicted_price: float
+    model_version: str
+    event_time: Optional[str]
+
+
+@strawberry.type
+class ResumenStreaming:
+    fecha: str
+    archivos: int
+    total: int
+    items: list[PrediccionStreaming]
+
+
+def _leer_predicciones_streaming(fecha: Optional[str], limite: int) -> ResumenStreaming:
+    fecha = fecha or datetime.now(timezone.utc).date().isoformat()
+    date.fromisoformat(fecha)  # valida el formato AAAA-MM-DD (si no, error de GraphQL)
+    limite = max(1, min(limite, 500))
+    claves = lago.listar(f"raw/streaming/fecha={fecha}/")
+    if not claves:
+        return ResumenStreaming(fecha=fecha, archivos=0, total=0, items=[])
+    todas = pd.concat([lago.leer_parquet(k) for k in claves], ignore_index=True)
+    df = todas.sort_values("scored_at", ascending=False).head(limite)
+    items = [
+        PrediccionStreaming(
+            name=r.name, year=int(r.year), km_driven=int(r.km_driven), fuel=r.fuel,
+            predicted_price=float(r.predicted_price), model_version=str(r.model_version),
+            event_time=(datetime.fromtimestamp(r.event_time, timezone.utc).isoformat(timespec="seconds")
+                        if pd.notna(r.event_time) else None),
+        )
+        for r in df.itertuples()
+    ]
+    return ResumenStreaming(fecha=fecha, archivos=len(claves), total=len(todas), items=items)
+
+
 def _to_car_raw_input(car: CarInput) -> CarRawInput:
     return CarRawInput(
         name=car.name,
@@ -103,6 +151,10 @@ class Query:
             n_features=len(state.all_features),
             top_brands=state.top_brands,
         )
+
+    @strawberry.field(description="Predicciones de la capa de streaming guardadas en el Data Lake para una fecha (AAAA-MM-DD, por defecto hoy en UTC), de la más reciente a la más vieja.")
+    def predicciones_streaming(self, fecha: Optional[str] = None, limite: int = 20) -> ResumenStreaming:
+        return _leer_predicciones_streaming(fecha, limite)
 
 
 @strawberry.type
