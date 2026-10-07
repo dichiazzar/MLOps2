@@ -5,11 +5,11 @@
 FROM python:3.11-slim
 WORKDIR /app
 
-COPY MLOps2_TP_Final_capas_acceso_S1_S4/federated_service/requirements.txt .
+COPY MLOps2_TP_Final/federated_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY MLOps1_final/common /app/common
-COPY MLOps2_TP_Final_capas_acceso_S1_S4/federated_service/app /app/app
+COPY MLOps2_TP_Final/federated_service/app /app/app
 
 ENV PYTHONPATH=/app
 CMD ["python", "-m", "app.servidor"]

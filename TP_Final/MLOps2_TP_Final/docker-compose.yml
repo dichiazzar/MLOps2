@@ -9,13 +9,17 @@
 #
 # y recién después este:
 #
-#   cd ../MLOps2_TP_Final_capas_acceso_S1_S4 && docker compose up -d --build
+#   cd ../MLOps2_TP_Final && docker compose up -d --build
 #
 # REST no es una capa nueva: es la API que ya existía en MLOps1_final/api
 # (mismo Dockerfile, mismo código — ver rest_service/README.md). Se incluye
 # acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este
 # único compose sin chocar con el servicio `api` de MLOps1_final si ese
 # stack también está arriba a la vez.
+
+# Nombre fijo del proyecto: así Docker no depende del nombre de la carpeta
+# (si la carpeta se renombra, los contenedores e imágenes no cambian).
+name: mlops2-tp-final
 
 # Configuración común de los servicios de aprendizaje federado (clase5).
 # PARTICION (iid | no_iid) y SIGMA (ruido) se pueden cambiar al lanzar, ver README.
@@ -31,7 +35,7 @@ x-federado-env: &federado-env
 x-federado: &federado
   build:
     context: ..
-    dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/federated_service/Dockerfile
+    dockerfile: MLOps2_TP_Final/federated_service/Dockerfile
   image: capas-federado
   env_file:
     - ../MLOps1_final/.env
@@ -61,7 +65,7 @@ services:
   graphql:
     build:
       context: ..
-      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/graphql_service/Dockerfile
+      dockerfile: MLOps2_TP_Final/graphql_service/Dockerfile
     container_name: capas-graphql
     restart: unless-stopped
     env_file:
@@ -75,7 +79,7 @@ services:
   grpc:
     build:
       context: ..
-      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/grpc_service/Dockerfile
+      dockerfile: MLOps2_TP_Final/grpc_service/Dockerfile
     container_name: capas-grpc
     restart: unless-stopped
     env_file:
@@ -111,7 +115,7 @@ services:
   streaming-consumer:
     build:
       context: ..
-      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/streaming_service/Dockerfile
+      dockerfile: MLOps2_TP_Final/streaming_service/Dockerfile
     container_name: capas-streaming-consumer
     restart: unless-stopped
     command: ["python", "-m", "app.consumer"]
@@ -128,7 +132,7 @@ services:
   streaming-producer:
     build:
       context: ..
-      dockerfile: MLOps2_TP_Final_capas_acceso_S1_S4/streaming_service/Dockerfile
+      dockerfile: MLOps2_TP_Final/streaming_service/Dockerfile
     container_name: capas-streaming-producer
     command: ["python", "-m", "app.producer"]
     depends_on:

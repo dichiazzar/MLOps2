@@ -16,7 +16,7 @@ TPs/
 ├── clase6/      Mini TP 6: modelo guardado y servido desde un Data Lake (MinIO)
 └── TP_Final/
     ├── MLOps1_final/                         TP final de MLOps 1 (base de referencia)
-    └── MLOps2_TP_Final_capas_acceso_S1_S4/   TP final de MLOps 2 (en progreso)
+    └── MLOps2_TP_Final/   TP final de MLOps 2 (en progreso)
 ```
 
 ## Mini TPs (clase 1 a clase 6)
@@ -42,7 +42,7 @@ Es el TP final completo de la materia anterior (MLOps 1). Se usa como **base** p
 - Todo corre en Docker: Airflow entrena el modelo, MLflow lo guarda, y una API REST hace las predicciones.
 - Cómo levantarlo: ver [TP_Final/MLOps1_final/README.md](TP_Final/MLOps1_final/README.md).
 
-### MLOps2_TP_Final_capas_acceso_S1_S4
+### MLOps2_TP_Final
 
 Es el TP integrador de **esta materia (MLOps 2)**. Usa el mismo modelo de MLOps 1, pero agrega lo visto en las clases de MLOps 2.
 
@@ -59,7 +59,7 @@ Además incluye el **entrenamiento federado** de la clase 5: un servidor y 3 cli
 
 - Todas usan el mismo código de predicción de MLOps 1, sin copiarlo.
 - Necesita que el stack de MLOps1_final esté corriendo y con el modelo ya entrenado.
-- Cómo levantarlo y probarlo: ver [TP_Final/MLOps2_TP_Final_capas_acceso_S1_S4/README.md](TP_Final/MLOps2_TP_Final_capas_acceso_S1_S4/README.md).
-- Diseño general: ver [Diseño de arquitectura.md](TP_Final/MLOps2_TP_Final_capas_acceso_S1_S4/Diseño%20de%20arquitectura.md).
+- Cómo levantarlo y probarlo: ver [TP_Final/MLOps2_TP_Final/README.md](TP_Final/MLOps2_TP_Final/README.md).
+- Diseño general: ver [Diseño de arquitectura.md](TP_Final/MLOps2_TP_Final/Diseño%20de%20arquitectura.md).
 
 > **Estado:** incluye lo visto en las clases 1 a 5. Lo de la clase 6 (Data Lake) **todavía no está agregado** al TP final.

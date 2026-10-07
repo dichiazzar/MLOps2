@@ -36,7 +36,7 @@ docker compose up -d postgres minio init-minio mlflow airflow-init airflow-webse
 ## 2. Levantar las cuatro capas
 
 ```bash
-cd ../capas_acceso_S1_S4
+cd ../MLOps2_TP_Final
 docker compose up -d --build
 ```
 
@@ -74,7 +74,7 @@ query {
 mutation {
   predict(car: {
     name: "Maruti Swift Dzire VDI", year: 2014, kmDriven: 145500,
-    fuel: DIESEL, sellerType: INDIVIDUAL, transmission: MANUAL, owner: FIRST,
+    fuel: diesel, sellerType: individual, transmission: manual, owner: first,
     mileage: "23.4 kmpl", engine: "1248 CC", maxPower: "74 bhp",
     torque: "190Nm@ 2000rpm", seats: 5
   }) { predictedPrice modelVersion }

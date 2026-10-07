@@ -3,15 +3,15 @@
 FROM python:3.11-slim
 WORKDIR /app
 
-COPY MLOps2_TP_Final_capas_acceso_S1_S4/grpc_service/requirements.txt .
+COPY MLOps2_TP_Final/grpc_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY MLOps1_final/common /app/common
 COPY MLOps1_final/api/app/predict.py /app/app/predict.py
 COPY MLOps1_final/api/app/__init__.py /app/app/__init__.py
-COPY MLOps2_TP_Final_capas_acceso_S1_S4/grpc_service/proto ./proto
-COPY MLOps2_TP_Final_capas_acceso_S1_S4/grpc_service/app/server.py /app/app/server.py
-COPY MLOps2_TP_Final_capas_acceso_S1_S4/grpc_service/app/client_example.py /app/app/client_example.py
+COPY MLOps2_TP_Final/grpc_service/proto ./proto
+COPY MLOps2_TP_Final/grpc_service/app/server.py /app/app/server.py
+COPY MLOps2_TP_Final/grpc_service/app/client_example.py /app/app/client_example.py
 
 # Generar los stubs como módulos top-level en /app (no dentro de app/, porque
 # el código que grpc_tools genera para car_price_pb2_grpc.py hace
