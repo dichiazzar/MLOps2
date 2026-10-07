@@ -6,15 +6,26 @@ A diferencia de las otras tres capas, acá no hay un cliente que pregunte: el
 consumidor puntúa cada evento a medida que llega del topic y agrega, sobre una
 ventana deslizante de 1s, throughput, latencia p95 y la media de `km_driven`
 como indicador simple de drift de entrada.
+
+Clase 6: el stream es efímero (Redpanda borra los eventos al vencer la retención).
+Para que no se pierdan, cada evento se guarda con su predicción en el Data Lake,
+en Parquet, en la zona raw y separado por fecha:
+    s3://datalake/raw/streaming/fecha=AAAA-MM-DD/lote-HHMMSS-N.parquet
+Se guarda cada LOTE_LAKE eventos, o antes si pasan SEGUNDOS_SIN_EVENTOS sin que
+llegue nada (para no dejar eventos sin guardar al final de una tanda).
 """
 
 import json
 import logging
 import time
 from collections import deque
+from datetime import datetime, timezone
 
 import numpy as np
+import pandas as pd
 from kafka import KafkaConsumer
+
+from app import lago
 
 from app.predict import ModelState, load_production_model, predict_price
 from common.schemas import CarRawInput
@@ -31,6 +42,42 @@ CADA_N_EVENTOS = 50
 # Si la media móvil de la ventana supera esto, algo cambió en la distribución
 # de entrada respecto a lo que el modelo aprendió.
 UMBRAL_KM_DRIFT = 150_000
+
+# Data Lake (clase 6)
+LOTE_LAKE = 500
+SEGUNDOS_SIN_EVENTOS = 10
+
+
+class GuardadoEnLake:
+    """Junta eventos puntuados y los guarda en el lake por lotes."""
+
+    def __init__(self):
+        self.filas = []
+        self.lotes = 0
+        self.ultimo_evento = time.time()
+
+    def agregar(self, fila: dict):
+        self.filas.append(fila)
+        self.ultimo_evento = time.time()
+        if len(self.filas) >= LOTE_LAKE:
+            self.guardar()
+
+    def revisar_inactividad(self):
+        if self.filas and time.time() - self.ultimo_evento >= SEGUNDOS_SIN_EVENTOS:
+            self.guardar()
+
+    def guardar(self):
+        ahora = datetime.now(timezone.utc)
+        self.lotes += 1
+        key = (f"raw/streaming/fecha={ahora:%Y-%m-%d}/"
+               f"lote-{ahora:%H%M%S}-{self.lotes:04d}.parquet")
+        try:
+            lago.subir_parquet(pd.DataFrame(self.filas), key)
+            logger.info("Lake: %d eventos guardados en s3://%s/%s", len(self.filas), lago.BUCKET, key)
+        except Exception:
+            # Si el lake falla, el scoring sigue: se pierde el lote, no el servicio.
+            logger.exception("Lake: no se pudo guardar el lote (%d eventos)", len(self.filas))
+        self.filas = []
 
 
 def _car_from_event(ev: dict) -> CarRawInput:
@@ -58,6 +105,9 @@ def main():
         TOPIC,
         bootstrap_servers=BROKER,
         auto_offset_reset="earliest",
+        # Con grupo, Redpanda recuerda hasta dónde se leyó: al reiniciar el consumidor
+        # sigue desde ahí y no vuelve a guardar en el lake eventos ya guardados.
+        group_id="streaming-consumer",
         value_deserializer=lambda b: json.loads(b.decode("utf-8")),
     )
 
@@ -65,9 +115,9 @@ def main():
     ventana = deque()  # (event_time, km_driven)
     procesados = 0
     t_inicio = time.time()
+    lake = GuardadoEnLake()
 
-    for msg in consumer:
-        ev = msg.value
+    for ev in _eventos(consumer, lake):
         t0 = time.perf_counter()
         try:
             car = _car_from_event(ev)
@@ -76,6 +126,13 @@ def main():
             logger.exception("Evento inválido, se descarta: %s", ev)
             continue
         latencias.append((time.perf_counter() - t0) * 1000)
+        lake.agregar({
+            **{k: v for k, v in ev.items() if not k.startswith("_")},
+            "predicted_price": price,
+            "model_version": state.model_version,
+            "event_time": ev.get("_event_time"),
+            "scored_at": time.time(),
+        })
 
         event_time = ev.get("_event_time", time.time())
         ventana.append((event_time, ev["km_driven"]))
@@ -98,6 +155,19 @@ def main():
                     "de lo que el modelo vio en entrenamiento.",
                     media_km, UMBRAL_KM_DRIFT,
                 )
+
+
+def _eventos(consumer, lake):
+    """Devuelve los eventos del topic uno por uno. Mientras espera, revisa si hay
+    eventos juntados sin guardar en el lake (poll con timeout en vez de bloquear)."""
+    while True:
+        lotes = consumer.poll(timeout_ms=1000)
+        if not lotes:
+            lake.revisar_inactividad()
+            continue
+        for mensajes in lotes.values():
+            for msg in mensajes:
+                yield msg.value
 
 
 if __name__ == "__main__":
