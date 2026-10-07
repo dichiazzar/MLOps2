@@ -48,11 +48,12 @@ x-federado: &federado
     - federado
 
 services:
-  # --- 1. REST (clase1): mismo código que MLOps1_final/api, puerto distinto ---
+  # --- 1. REST (clase1): mismo código que MLOps1_final/api, puerto distinto.
+  #      Dockerfile propio solo para cambiar predict.py (clase 6), ver rest_service/README.md ---
   rest:
     build:
-      context: ../MLOps1_final
-      dockerfile: api/Dockerfile
+      context: ..
+      dockerfile: MLOps2_TP_Final/rest_service/Dockerfile
     container_name: capas-rest
     restart: unless-stopped
     env_file:
