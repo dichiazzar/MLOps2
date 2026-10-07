@@ -9,7 +9,7 @@ fue el diseño original del TP y no se reimplementa: se reusa tal cual.
 |---|---|
 | Código fuente | `../../MLOps1_final/api/app/main.py` (+ `predict.py`, `db.py`, `models_orm.py`) |
 | Dockerfile | `../../MLOps1_final/api/Dockerfile` |
-| Puerto | `8000` |
+| Puerto | `8010` en este proyecto (la misma API usa el `8000` en el stack de `MLOps1_final`) |
 | Endpoints | `GET /health`, `GET /model/info`, `POST /predict`, `GET /predictions/recent` |
 | Mini-TP de origen | `clase1/Practica/API_MLOPS2.ipynb` |
 

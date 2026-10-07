@@ -1,5 +1,5 @@
-# Contexto de build: MLOps1_final/ (para poder copiar common/ y api/app/predict.py
-# sin duplicarlos — ver docker-compose.yml de esta carpeta).
+# Contexto de build: TP_Final/ (para poder copiar common/ y api/app/predict.py
+# de MLOps1_final sin duplicarlos, ver docker-compose.yml de esta carpeta).
 FROM python:3.11-slim
 WORKDIR /app
 
