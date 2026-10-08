@@ -57,7 +57,7 @@ Ofrece **4 formas distintas de pedirle predicciones al mismo modelo**:
 
 Además incluye el **entrenamiento federado** de la clase 5: un servidor y 3 clientes en Docker, con Flower, que entrenan un modelo sin juntar los datos en un solo lugar.
 
-Y el **Data Lake** de la clase 6: un bucket en MinIO con zonas `raw` y `curated`, donde además quedan guardadas las predicciones de streaming. MLflow sigue siendo el registro de los modelos.
+Y el **Data Lake** de la clase 6: un bucket en MinIO con zonas `raw` y `curated`, donde además quedan guardadas las predicciones de streaming. MLflow sigue siendo el registro de los modelos, que a su vez usa MinIO como repositorio.
 
 - Todas usan el mismo código de predicción de MLOps 1, sin copiarlo.
 - Necesita que el stack de MLOps1_final esté corriendo y con el modelo ya entrenado.
