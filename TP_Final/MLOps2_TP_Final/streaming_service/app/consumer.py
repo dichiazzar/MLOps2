@@ -13,6 +13,11 @@ en Parquet, en la zona raw y separado por fecha:
     s3://datalake/raw/streaming/fecha=AAAA-MM-DD/lote-HHMMSS-N.parquet
 Se guarda cada LOTE_LAKE eventos, o antes si pasan SEGUNDOS_SIN_EVENTOS sin que
 llegue nada (para no dejar eventos sin guardar al final de una tanda).
+
+El consumidor usa un grupo y confirma a Redpanda hasta dónde leyó (commit) recién
+DESPUÉS de guardar cada lote en el lake. Si se reinicia o se cae con eventos
+juntados sin guardar, al volver los lee de nuevo y no se pierden. (Solo si se cae
+justo entre guardar un lote y confirmarlo, ese lote puede quedar guardado dos veces.)
 """
 
 import json
@@ -23,7 +28,8 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, TopicPartition
+from kafka.structs import OffsetAndMetadata
 
 from app import lago
 
@@ -51,10 +57,20 @@ SEGUNDOS_SIN_EVENTOS = 10
 class GuardadoEnLake:
     """Junta eventos puntuados y los guarda en el lake por lotes."""
 
-    def __init__(self):
+    def __init__(self, consumer):
+        self.consumer = consumer
         self.filas = []
+        self.offsets = {}  # partición -> próximo offset a leer, de lo ya juntado
         self.lotes = 0
         self.ultimo_evento = time.time()
+        try:
+            lago.crear_bucket_y_zonas()
+        except Exception:
+            logger.exception("Lake: no se pudo crear/verificar el bucket '%s'", lago.BUCKET)
+
+    def marcar_leido(self, msg):
+        """Registra hasta dónde se leyó, aunque el evento haya sido inválido."""
+        self.offsets[(msg.topic, msg.partition)] = msg.offset + 1
 
     def agregar(self, fila: dict):
         self.filas.append(fila)
@@ -63,8 +79,11 @@ class GuardadoEnLake:
             self.guardar()
 
     def revisar_inactividad(self):
-        if self.filas and time.time() - self.ultimo_evento >= SEGUNDOS_SIN_EVENTOS:
-            self.guardar()
+        if time.time() - self.ultimo_evento >= SEGUNDOS_SIN_EVENTOS:
+            if self.filas:
+                self.guardar()
+            elif self.offsets:   # solo hubo eventos inválidos: igual se confirman
+                self._confirmar()
 
     def guardar(self):
         ahora = datetime.now(timezone.utc)
@@ -78,6 +97,13 @@ class GuardadoEnLake:
             # Si el lake falla, el scoring sigue: se pierde el lote, no el servicio.
             logger.exception("Lake: no se pudo guardar el lote (%d eventos)", len(self.filas))
         self.filas = []
+        self._confirmar()
+
+    def _confirmar(self):
+        self.consumer.commit({
+            TopicPartition(t, p): OffsetAndMetadata(o, None) for (t, p), o in self.offsets.items()
+        })
+        self.offsets = {}
 
 
 def _car_from_event(ev: dict) -> CarRawInput:
@@ -108,6 +134,7 @@ def main():
         # Con grupo, Redpanda recuerda hasta dónde se leyó: al reiniciar el consumidor
         # sigue desde ahí y no vuelve a guardar en el lake eventos ya guardados.
         group_id="streaming-consumer",
+        enable_auto_commit=False,   # se confirma a mano, después de guardar en el lake
         value_deserializer=lambda b: json.loads(b.decode("utf-8")),
     )
 
@@ -115,9 +142,11 @@ def main():
     ventana = deque()  # (event_time, km_driven)
     procesados = 0
     t_inicio = time.time()
-    lake = GuardadoEnLake()
+    lake = GuardadoEnLake(consumer)
 
-    for ev in _eventos(consumer, lake):
+    for msg in _mensajes(consumer, lake):
+        ev = msg.value
+        lake.marcar_leido(msg)
         t0 = time.perf_counter()
         try:
             car = _car_from_event(ev)
@@ -157,8 +186,8 @@ def main():
                 )
 
 
-def _eventos(consumer, lake):
-    """Devuelve los eventos del topic uno por uno. Mientras espera, revisa si hay
+def _mensajes(consumer, lake):
+    """Devuelve los mensajes del topic uno por uno. Mientras espera, revisa si hay
     eventos juntados sin guardar en el lake (poll con timeout en vez de bloquear)."""
     while True:
         lotes = consumer.poll(timeout_ms=1000)
@@ -166,8 +195,7 @@ def _eventos(consumer, lake):
             lake.revisar_inactividad()
             continue
         for mensajes in lotes.values():
-            for msg in mensajes:
-                yield msg.value
+            yield from mensajes
 
 
 if __name__ == "__main__":

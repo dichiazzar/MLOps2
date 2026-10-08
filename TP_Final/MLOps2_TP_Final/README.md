@@ -14,12 +14,12 @@ Además incluye:
 
 | Capa | Puerto (esta carpeta) | Origen del código | Qué demuestra |
 |---|---|---|---|
-| **REST** | 8010 | `rest_service/` → mismo código de `../MLOps1_final/api` (no se reimplementa), Dockerfile propio | petición → respuesta simple (`clase1/Practica/API_MLOPS2.ipynb`) |
-| **GraphQL** | 8001 | `graphql_service/` | el cliente elige qué campos pedir (`clase2/.../mini_tp2_actividad.ipynb`) |
-| **gRPC** | 50051 | `grpc_service/` | contrato tipado + unary + server-streaming (`clase3/.../mini_tp3_actividad.ipynb`) |
-| **Streaming** | — (consume de Redpanda) | `streaming_service/` | scoring online + métricas por ventana + alerta de drift (`clase4/.../mini_tp4_actividad.ipynb`) |
-| **Federado** | — (interno, se corre a mano) | `federated_service/` | entrenar sin mover los datos: FedAvg con Flower, IID / non-IID / ruido (`clase5/mini_tp5_federado_actividad.ipynb`) |
-| **Data Lake** | — (MinIO, bucket `datalake`) | `datalake/` | zonas raw/curated, metadata del modelo en MLflow, streaming guardado en el lake (`clase6/mini_tp6_actividad.ipynb`) |
+| **REST** | 8010 | `rest_service/` → mismo código de `../MLOps1_final/api` (no se reimplementa), Dockerfile propio | petición → respuesta simple ([`clase1/API_MLOPS2.ipynb`](../../clase1/API_MLOPS2.ipynb)) |
+| **GraphQL** | 8001 | `graphql_service/` | el cliente elige qué campos pedir ([`clase2/mini_tp2_actividad.ipynb`](../../clase2/mini_tp2_actividad.ipynb)) |
+| **gRPC** | 50051 | `grpc_service/` | contrato tipado + unary + server-streaming ([`clase3/mini_tp3_actividad.ipynb`](../../clase3/mini_tp3_actividad.ipynb)) |
+| **Streaming** | — (consume de Redpanda) | `streaming_service/` | scoring online + métricas por ventana + alerta de drift ([`clase4/mini_tp4_actividad.ipynb`](../../clase4/mini_tp4_actividad.ipynb)) |
+| **Federado** | — (interno, se corre a mano) | `federated_service/` | entrenar sin mover los datos: FedAvg con Flower, IID / non-IID / ruido ([`clase5/mini_tp5_federado_actividad.ipynb`](../../clase5/mini_tp5_federado_actividad.ipynb)) |
+| **Data Lake** | — (MinIO, bucket `datalake`) | `datalake/` | zonas raw/curated, metadata del modelo en MLflow, streaming guardado en el lake ([`clase6/mini_tp6_actividad.ipynb`](../../clase6/mini_tp6_actividad.ipynb)) |
 
 > REST no es una capa nueva: reusa el mismo código que ya existía en `MLOps1_final/api`, solo
 > expuesto acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este único
@@ -62,7 +62,8 @@ que `mlflow`/`minio` (`mlops-net` de `MLOps1_final`), sin duplicar esos servicio
 
 ## 3. Probar cada capa
 
-**REST** — `curl -X POST http://localhost:8010/predict -H "Content-Type: application/json" -d '{
+**REST** \
+linux — `curl -X POST http://localhost:8010/predict -H "Content-Type: application/json" -d '{
   "name": "Maruti Swift Dzire VDI",
   "year": 2010,
   "km_driven": 15000,
@@ -76,6 +77,8 @@ que `mlflow`/`minio` (`mlops-net` de `MLOps1_final`), sin duplicar esos servicio
   "torque": "190Nm@ 2000rpm",
   "seats": 1
 }'`
+
+windows CMD (no powershell) — `curl -X POST http://localhost:8010/predict -H "Content-Type: application/json" -d "{\"name\": \"Maruti Swift Dzire VDI\", \"year\": 2014, \"km_driven\": 145500, \"fuel\": \"Diesel\", \"seller_type\": \"Individual\", \"transmission\": \"Manual\", \"owner\": \"First Owner\", \"mileage\": \"23.4 kmpl\", \"engine\": \"1248 CC\", \"max_power\": \"74 bhp\", \"torque\": \"190Nm@ 2000rpm\", \"seats\": 5}"`
 (mismos endpoints y payload que `MLOps1_final/api`, ver su README).
 
 **GraphQL** — abrir `http://localhost:8001/graphql` (GraphiQL incluido) y correr alguno de estos queries:
@@ -223,7 +226,7 @@ datalake/
 
 **Por qué MLflow sigue siendo la fuente del modelo.** El Mini TP 6 guarda el modelo en el lake
 con un archivo `PRODUCTION` que dice qué versión usar. Este TP ya tiene MLflow, que hace eso mismo
-con más garantías (quién y cuándo cambió una versión, vínculo con su entrenamiento y métricas), y
+con más garantías (cuándo cambió de estado cada versión, vínculo con su entrenamiento y métricas), y
 que **ya guarda los modelos en MinIO**. Tener un segundo registro solo agregaría el riesgo de que
 los dos digan cosas distintas. Las capas siguen sin llevar el modelo dentro de la imagen: lo bajan
 del lake (vía MLflow) al arrancar, que es la idea central de la clase 6.
@@ -239,7 +242,7 @@ que reemplaza a la original al construir cada imagen: el código de las capas no
 |---|---|
 | `lake-preparar` | Crea el bucket y las zonas, copia el dataset crudo a `raw`, guarda las features en `curated` y agrega la metadata al run del modelo en Production. Se puede correr varias veces |
 | las 4 capas | Bajan el modelo de MLflow y leen su metadata del mismo run |
-| `streaming-consumer` | Guarda cada evento con su predicción en `raw/streaming/`, separado por fecha, por lotes de 500 (o tras 10 s sin eventos). Usa un grupo de consumidores, así al reiniciarse no repite eventos ya guardados |
+| `streaming-consumer` | Guarda cada evento con su predicción en `raw/streaming/`, separado por fecha, por lotes de 500 (o tras 10 s sin eventos). Usa un grupo de consumidores y confirma a Redpanda hasta dónde leyó recién después de guardar cada lote: si se reinicia, sigue desde ahí sin perder los eventos que tenía juntados |
 | `graphql` | La query `prediccionesStreaming` lee esos archivos del lake |
 
 **Cómo correrlo.** Con todo levantado (secciones 1 y 2):
@@ -259,6 +262,7 @@ lake se ve en la consola de MinIO (`http://localhost:9001`, bucket `datalake`).
 **Diferencias con el mini TP 6:**
 - El modelo no se copia a una carpeta `models/` del lake: MLflow ya lo guarda en MinIO y sigue
   siendo el registro de qué versión está en producción.
-- Además del modelo, el lake guarda los eventos de streaming, que antes se perdían al vencer la
-  retención de Redpanda.
-- El bucket es el del stack del TP (`minioadmin`), no el MinIO aparte del tutorial.
+- El lake también guarda los eventos de streaming con su predicción, que antes se perdían al
+  vencer la retención de Redpanda.
+- El TP usa su propio bucket (`datalake`), separado del bucket `datalake-tp6` que usó el mini TP
+  en el mismo MinIO.

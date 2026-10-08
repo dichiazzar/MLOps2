@@ -23,7 +23,7 @@ Cada capa aplica lo practicado en su mini-TP correspondiente, servido sobre el m
 
 Un cliente manda las features de un caso y espera una predicción. Es el patrón más simple y más estándar: pensado para consumidores externos o integraciones de terceros que no negocian el protocolo con vos.
 
-`clase1/Practica/API_MLOPS2.ipynb`
+[`clase1/API_MLOPS2.ipynb`](../../clase1/API_MLOPS2.ipynb)
 
 ### GraphQL
 
@@ -32,7 +32,7 @@ Un cliente manda las features de un caso y espera una predicción. Es el patrón
 
 El cliente pide exactamente los campos que necesita (predicción, métricas del modelo, metadata de versión) en una sola consulta. Útil para un dashboard interno que combina varias vistas del mismo modelo sin multiplicar endpoints.
 
-`clase2/Practica/mini_tp2_actividad.ipynb`
+[`clase2/mini_tp2_actividad.ipynb`](../../clase2/mini_tp2_actividad.ipynb)
 
 ### gRPC
 
@@ -41,7 +41,7 @@ El cliente pide exactamente los campos que necesita (predicción, métricas del 
 
 Contrato tipado (`.proto`), canal persistente, payload binario. Pensado para que otro servicio interno de la plataforma llame al modelo a alto volumen y baja latencia — no para hablarle directo desde un navegador.
 
-`clase3/Practica/mini_tp3_actividad.ipynb`
+[`clase3/mini_tp3_actividad.ipynb`](../../clase3/mini_tp3_actividad.ipynb)
 
 ### Streaming
 
@@ -50,7 +50,7 @@ Contrato tipado (`.proto`), canal persistente, payload binario. Pensado para que
 
 No hay cliente que pregunte: un consumidor puntúa cada evento a medida que llega desde un topic, y agrega throughput, p95 y un indicador de drift por ventana — disparando una alerta si la distribución de entrada se corre de lo esperado.
 
-`clase4/Practica/mini_tp4_actividad.ipynb`
+[`clase4/mini_tp4_actividad.ipynb`](../../clase4/mini_tp4_actividad.ipynb)
 
 ## Entrenamiento federado (clase 5)
 
@@ -70,7 +70,7 @@ ventas y no quiere (o no puede) compartirlos con las demás.
 - El modelo resultante se registra como `linreg_federado`, **separado** de `xgb_best`: es un
   experimento de entrenamiento, no reemplaza al modelo que sirven las cuatro capas.
 
-`clase5/mini_tp5_federado_actividad.ipynb`
+[`clase5/mini_tp5_federado_actividad.ipynb`](../../clase5/mini_tp5_federado_actividad.ipynb)
 
 ## Data Lake (clase 6)
 
@@ -93,7 +93,7 @@ sobre el mismo MinIO del TP integrador:
 - **GraphQL sobre el lake:** la query `prediccionesStreaming` lee esos archivos, usando el lake como
   origen de verdad.
 
-`clase6/mini_tp6_actividad.ipynb`
+[`clase6/mini_tp6_actividad.ipynb`](../../clase6/mini_tp6_actividad.ipynb)
 
 ## Diagrama
 

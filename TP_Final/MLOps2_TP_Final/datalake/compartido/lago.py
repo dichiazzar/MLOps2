@@ -15,6 +15,7 @@ import os
 import boto3
 import pandas as pd
 from botocore.client import Config
+from botocore.exceptions import ClientError
 
 BUCKET = "datalake"
 ZONAS = ["raw", "curated"]
@@ -58,7 +59,12 @@ def listar(prefijo: str, cliente=None) -> list:
         args = {"Bucket": BUCKET, "Prefix": prefijo}
         if token:
             args["ContinuationToken"] = token
-        resp = cliente.list_objects_v2(**args)
+        try:
+            resp = cliente.list_objects_v2(**args)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchBucket":  # todavía no se corrió lake-preparar
+                return []
+            raise
         claves += [o["Key"] for o in resp.get("Contents", []) if not o["Key"].endswith(".keep")]
         if not resp.get("IsTruncated"):
             return claves

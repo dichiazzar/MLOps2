@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 METADATA_ARTIFACT = "lake_metadata.json"
 
+# Lo que importan las capas desde app.predict (mismas funciones que MLOps1_final).
+__all__ = ["ModelState", "load_production_model", "predict_price", "METADATA_ARTIFACT"]
+
 
 def load_production_model() -> ModelState:
     mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])

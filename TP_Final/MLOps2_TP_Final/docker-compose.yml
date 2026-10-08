@@ -13,10 +13,10 @@
 #   cd ../MLOps2_TP_Final && docker compose up -d --build
 #
 # REST no es una capa nueva: es la API que ya existía en MLOps1_final/api
-# (mismo Dockerfile, mismo código — ver rest_service/README.md). Se incluye
-# acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este
-# único compose sin chocar con el servicio `api` de MLOps1_final si ese
-# stack también está arriba a la vez.
+# (mismo código — ver rest_service/README.md), con un Dockerfile propio solo
+# para usar el predict.py de la clase 6. Se incluye acá en el puerto 8010
+# (no 8000) para poder levantar las 4 capas desde este único compose sin chocar
+# con el servicio `api` de MLOps1_final si ese stack también está arriba a la vez.
 
 # Nombre fijo del proyecto: así Docker no depende del nombre de la carpeta
 # (si la carpeta se renombra, los contenedores e imágenes no cambian).

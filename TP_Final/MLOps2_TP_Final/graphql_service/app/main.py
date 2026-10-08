@@ -103,8 +103,13 @@ class ResumenStreaming:
 
 
 def _leer_predicciones_streaming(fecha: Optional[str], limite: int) -> ResumenStreaming:
-    fecha = fecha or datetime.now(timezone.utc).date().isoformat()
-    date.fromisoformat(fecha)  # valida el formato AAAA-MM-DD (si no, error de GraphQL)
+    if fecha is None:
+        fecha = datetime.now(timezone.utc).date().isoformat()
+    else:
+        try:  # valida y normaliza a AAAA-MM-DD (también evita armar rutas raras en S3)
+            fecha = date.fromisoformat(fecha).isoformat()
+        except ValueError:
+            raise ValueError(f"fecha inválida: '{fecha}'. Usar el formato AAAA-MM-DD.") from None
     limite = max(1, min(limite, 500))
     claves = lago.listar(f"raw/streaming/fecha={fecha}/")
     if not claves:
