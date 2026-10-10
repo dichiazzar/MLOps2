@@ -10,3 +10,4 @@ numpy==1.26.4
 pydantic==2.7.1
 scikit-learn==1.5.2
 pyjwt==2.8.0  # seguridad.py (clase 7)
+pyarrow==15.0.2  # lago.py (auditoría en el Data Lake); mismo pin que GraphQL y streaming

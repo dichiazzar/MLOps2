@@ -115,6 +115,9 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_CAPA_GRPC_PASSWORD}
     ports:
       - "50051:50051"
+    # Clase 7: certificado TLS del servidor (lo crea seguridad-certs), solo lectura.
+    volumes:
+      - certs:/certs:ro
     networks:
       - mlops-net
 
