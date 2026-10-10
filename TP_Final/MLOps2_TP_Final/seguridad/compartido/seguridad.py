@@ -248,6 +248,9 @@ def calcular_rangos(df_tecnico, margen: float = 0.2) -> dict:
 # ======================= Integridad del modelo =======================
 
 ARTEFACTO_SEGURIDAD = "seguridad_modelo.json"
+# Archivos que MLflow genera al bajar un modelo con models:/... y que NO son parte del
+# artefacto guardado en S3 (si se incluyeran, el hash dependería de cómo se bajó).
+NO_SON_DEL_MODELO = {"registered_model_meta"}
 
 
 class IntegridadRota(RuntimeError):
@@ -258,7 +261,7 @@ def hash_modelo(carpeta) -> dict:
     carpeta = Path(carpeta)
     archivos = {}
     for p in sorted(carpeta.rglob("*")):
-        if p.is_file():
+        if p.is_file() and p.name not in NO_SON_DEL_MODELO:
             archivos[p.relative_to(carpeta).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
     total = hashlib.sha256("".join(f"{k}:{v}\n" for k, v in archivos.items()).encode()).hexdigest()
     return {"archivos": archivos, "sha256_total": total}

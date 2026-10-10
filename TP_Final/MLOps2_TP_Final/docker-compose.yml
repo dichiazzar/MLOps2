@@ -304,6 +304,21 @@ services:
     profiles:
       - seguridad
 
+  # Prueba de punta a punta de la seguridad (clase 7), con todo levantado:
+  #   docker compose --profile manual run --rm demo-ataques [--integridad]
+  demo-ataques:
+    image: capas-seguridad
+    entrypoint: ["python", "-m", "app.demo_ataques"]
+    env_file:
+      - ../MLOps1_final/.env
+      - .env
+    volumes:
+      - certs:/certs:ro
+    networks:
+      - mlops-net
+    profiles:
+      - manual
+
 volumes:
   certs:
 

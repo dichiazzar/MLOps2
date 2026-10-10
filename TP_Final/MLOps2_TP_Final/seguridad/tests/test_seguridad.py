@@ -249,6 +249,14 @@ def test_hash_modelo_estable(tmp_path):
     assert h1 == h2 and set(h1["archivos"]) == {"model.json", "MLmodel"}
 
 
+def test_hash_modelo_ignora_registered_model_meta(tmp_path):
+    # MLflow crea registered_model_meta al bajar un modelo con models:/...; no está en S3,
+    # así que el hash tiene que dar igual con o sin ese archivo.
+    sin_meta = s.hash_modelo(_modelo(tmp_path))
+    (tmp_path / "registered_model_meta").write_text("model_name: xgb_best\nmodel_version: '1'")
+    assert s.hash_modelo(tmp_path) == sin_meta
+
+
 def test_verificar_integridad(tmp_path):
     carpeta = _modelo(tmp_path)
     seg = {"sha256_total": s.hash_modelo(carpeta)["sha256_total"]}
