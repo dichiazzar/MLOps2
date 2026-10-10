@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY MLOps1_final/common /app/common
 COPY MLOps2_TP_Final/seguridad/app /app/app
 COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
+COPY MLOps2_TP_Final/rest_service/app/seguridad_rest.py /app/app/seguridad_rest.py
 COPY MLOps2_TP_Final/seguridad/tests /app/tests
 
 ENV PYTHONPATH=/app

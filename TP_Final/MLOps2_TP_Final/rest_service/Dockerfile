@@ -15,6 +15,8 @@ COPY MLOps1_final/api/app/predict.py /app/app/predict_mlflow.py
 COPY MLOps2_TP_Final/datalake/compartido/predict.py /app/app/predict.py
 COPY MLOps2_TP_Final/datalake/compartido/lago.py /app/app/lago.py
 COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
+COPY MLOps2_TP_Final/rest_service/app/seguridad_rest.py /app/app/seguridad_rest.py
+COPY MLOps2_TP_Final/rest_service/app/seguro.py /app/app/seguro.py
 
 ENV PYTHONPATH=/app
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.seguro:app", "--host", "0.0.0.0", "--port", "8000"]
