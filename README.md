@@ -66,9 +66,14 @@ Además incluye el **entrenamiento federado** de la clase 5: un servidor y 3 cli
 
 Y el **Data Lake** de la clase 6: un bucket en MinIO con zonas `raw` y `curated`, donde además quedan guardadas las predicciones de streaming. MLflow sigue siendo el registro de los modelos, que a su vez usa MinIO como repositorio.
 
+Por último, la **seguridad** de la clase 7: las 4 capas piden un token con rol (JWT), validan los
+datos de entrada y tienen límites contra el abuso; gRPC funciona solo con TLS; los eventos de
+streaming van firmados y los falsos quedan en cuarentena; cada servicio tiene su propio usuario en
+MinIO; el modelo se verifica con un hash antes de cargarse; y todo queda en un registro de auditoría.
+
 - Todas usan el mismo código de predicción de MLOps 1, sin copiarlo.
 - Necesita que el stack de MLOps1_final esté corriendo y con el modelo ya entrenado.
 - Cómo levantarlo y probarlo: ver [TP_Final/MLOps2_TP_Final/README.md](TP_Final/MLOps2_TP_Final/README.md).
 - Diseño general: ver [Diseño de arquitectura.md](TP_Final/MLOps2_TP_Final/Diseño%20de%20arquitectura.md).
 
-> **Estado:** incluye lo visto en las clases 1 a 6.
+> **Estado:** incluye lo visto en las clases 1 a 7.

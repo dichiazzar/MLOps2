@@ -1,4 +1,4 @@
-# Capas de acceso: REST · GraphQL · gRPC · Streaming (+ entrenamiento federado y Data Lake)
+# Capas de acceso: REST · GraphQL · gRPC · Streaming (+ entrenamiento federado, Data Lake y seguridad)
 
 Implementación de [`Diseño de arquitectura.md`](./Diseño%20de%20arquitectura.md): cuatro formas de
 acceder al mismo modelo (`xgb_best`) del TP integrador (`../MLOps1_final`), una por cada mini-TP de
@@ -10,7 +10,10 @@ Además incluye:
 - el **entrenamiento federado** de la clase 5 (sección 4): no es una capa de acceso sino otra
   forma de **entrenar** un modelo, sin juntar los datos en un solo lugar;
 - el **Data Lake** de la clase 6 (sección 5): datos organizados por zonas en MinIO, la memoria
-  durable del streaming y MLflow como zona de modelos.
+  durable del streaming y MLflow como zona de modelos;
+- la **seguridad** de la clase 7 (sección 6): token con rol en todas las capas, validación,
+  límites, TLS en gRPC, firma de los eventos de streaming, un usuario de MinIO por servicio,
+  integridad del modelo y auditoría.
 
 | Capa | Puerto (esta carpeta) | Origen del código | Qué demuestra |
 |---|---|---|---|
@@ -20,6 +23,7 @@ Además incluye:
 | **Streaming** | — (consume de Redpanda) | `streaming_service/` | scoring online + métricas por ventana + alerta de drift ([`clase4/mini_tp4_actividad.ipynb`](../../clase4/mini_tp4_actividad.ipynb)) |
 | **Federado** | — (interno, se corre a mano) | `federated_service/` | entrenar sin mover los datos: FedAvg con Flower, IID / non-IID / ruido ([`clase5/mini_tp5_federado_actividad.ipynb`](../../clase5/mini_tp5_federado_actividad.ipynb)) |
 | **Data Lake** | — (MinIO, bucket `datalake`) | `datalake/` | zonas raw/curated, metadata del modelo en MLflow, streaming guardado en el lake ([`clase6/mini_tp6_actividad.ipynb`](../../clase6/mini_tp6_actividad.ipynb)) |
+| **Seguridad** | — (transversal a todas las capas) | `seguridad/` | JWT con roles, validación, límites, TLS, firma HMAC, acceso mínimo, integridad del modelo y auditoría, siguiendo SAIF ([`clase7/`](../../clase7/)) |
 
 > REST no es una capa nueva: reusa el mismo código que ya existía en `MLOps1_final/api`, solo
 > expuesto acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este único
@@ -39,12 +43,20 @@ docker compose up -d postgres minio init-minio mlflow airflow-init airflow-webse
 # disparar el DAG de entrenamiento una vez (UI de Airflow en :8080, o `scripts/smoke_test.sh`)
 ```
 
-Después, preparar el Data Lake una vez (ver sección 5). Sin este paso las capas funcionan igual,
-pero calculan la metadata del modelo al arrancar, como en `MLOps1_final`:
+Después, en esta carpeta, preparar los secretos y la seguridad (una vez, ver sección 6):
 
 ```bash
 cd ../MLOps2_TP_Final
-docker compose --profile lake run --rm lake-preparar
+cp .env.example .env        # y cambiar los valores (el comando para generar secretos está en el archivo)
+docker compose --profile seguridad run --rm --build seguridad-certs   # certificado TLS de gRPC
+docker compose --profile seguridad run --rm seguridad-minio           # usuarios de MinIO y bucket datalake
+```
+
+Y preparar el Data Lake (ver sección 5). Además de la metadata del modelo, registra su **hash** y
+los rangos de entrada que usan las capas para validar los autos:
+
+```bash
+docker compose --profile lake run --rm --build lake-preparar
 ```
 
 ## 2. Levantar las cuatro capas
@@ -62,12 +74,25 @@ que `mlflow`/`minio` (`mlops-net` de `MLOps1_final`), sin duplicar esos servicio
 
 ## 3. Probar cada capa
 
+Desde la clase 7 **todas las capas piden un token** con un rol (ver sección 6). Primero emitir uno
+(dura 60 minutos; los roles con permisos son `analista` y `admin`):
+
+```bash
+# Git Bash / Linux
+TOKEN=$(docker compose --profile manual run --rm emitir-token jaime analista | tail -1)
+```
+
+```powershell
+# PowerShell
+$TOKEN = docker compose --profile manual run --rm emitir-token jaime analista | Select-Object -Last 1
+```
+
 **REST** \
-linux — `curl -X POST http://localhost:8010/predict -H "Content-Type: application/json" -d '{
+Git Bash / Linux — `curl -X POST http://localhost:8010/predict -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
   "name": "Maruti Swift Dzire VDI",
-  "year": 2010,
-  "km_driven": 15000,
-  "fuel": "Petrol",
+  "year": 2014,
+  "km_driven": 145500,
+  "fuel": "Diesel",
   "seller_type": "Individual",
   "transmission": "Manual",
   "owner": "First Owner",
@@ -75,19 +100,27 @@ linux — `curl -X POST http://localhost:8010/predict -H "Content-Type: applicat
   "engine": "1248 CC",
   "max_power": "74 bhp",
   "torque": "190Nm@ 2000rpm",
-  "seats": 1
+  "seats": 5
 }'`
 
-windows CMD (no powershell) — `curl -X POST http://localhost:8010/predict -H "Content-Type: application/json" -d "{\"name\": \"Maruti Swift Dzire VDI\", \"year\": 2014, \"km_driven\": 145500, \"fuel\": \"Diesel\", \"seller_type\": \"Individual\", \"transmission\": \"Manual\", \"owner\": \"First Owner\", \"mileage\": \"23.4 kmpl\", \"engine\": \"1248 CC\", \"max_power\": \"74 bhp\", \"torque\": \"190Nm@ 2000rpm\", \"seats\": 5}"`
-(mismos endpoints y payload que `MLOps1_final/api`, ver su README).
+windows CMD (no powershell) — primero `set TOKEN=<el token>` y después
+`curl -X POST http://localhost:8010/predict -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"name\": \"Maruti Swift Dzire VDI\", \"year\": 2014, \"km_driven\": 145500, \"fuel\": \"Diesel\", \"seller_type\": \"Individual\", \"transmission\": \"Manual\", \"owner\": \"First Owner\", \"mileage\": \"23.4 kmpl\", \"engine\": \"1248 CC\", \"max_power\": \"74 bhp\", \"torque\": \"190Nm@ 2000rpm\", \"seats\": 5}"`
 
-**GraphQL** — abrir `http://localhost:8001/graphql` (GraphiQL incluido) y correr alguno de estos queries:
+(mismos endpoints y payload que `MLOps1_final/api`, ver su README). Sin token responde `401`; con un
+año 3000 o un motor ilegible, `422`. `GET /health` y `/docs` son públicos.
+
+**GraphQL** — `POST http://localhost:8001/graphql` con el header `Authorization: Bearer <token>`
+(con curl, o con un cliente como Postman, Insomnia o Altair). GraphiQL está apagado: sin
+introspección no sirve (ver sección 6).
+
+```bash
+curl -s http://localhost:8001/graphql -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"query": "{ modelInfo { modelName modelVersion nFeatures } }"}'
+```
+
+Otras consultas para mandar en el campo `query`:
 
 ```graphql
-query {
-  modelInfo { modelName modelVersion nFeatures }
-}
-
 mutation {
   predict(car: {
     name: "Maruti Swift Dzire VDI", year: 2014, kmDriven: 145500,
@@ -104,26 +137,40 @@ query {
     items { name kmDriven predictedPrice modelVersion eventTime }
   }
 }
+
+# clase 7: registro de auditoría de una capa (solo con un token de rol admin)
+query {
+  auditoria(capa: "rest", limite: 10) {
+    total
+    items { ts usuario rol accion resultado detalle }
+  }
+}
 ```
 
-**gRPC** — desde dentro del contenedor (o instalando `grpcio`/`grpcio-tools` localmente y
-regenerando los stubs con el `.proto` de `grpc_service/proto/`):
+**gRPC** — solo acepta conexiones con **TLS**. El cliente de ejemplo verifica el servidor con la
+CA de prueba y manda el token:
 
 ```bash
-docker compose exec grpc python -m app.client_example
+docker compose exec -e TOKEN="$TOKEN" grpc python -m app.client_example
 ```
 
-**Streaming** — el consumidor ya está escuchando el topic `autos`; para generar tráfico de prueba
-(incluye un cambio de distribución a mitad de camino, para ver la alerta de drift):
+**Streaming** — el consumidor ya está escuchando el topic `autos`. El productor de prueba firma cada
+evento con la clave de su concesionaria (incluye un cambio de distribución a mitad de camino, para
+ver la alerta de drift):
 
 ```bash
 docker compose run --rm streaming-producer
 docker compose logs -f streaming-consumer
 ```
 
-Los logs muestran throughput, p95 y la media de `km_driven` por ventana; a mitad de la corrida del
-productor debería aparecer `⚠ ALERTA DE DRIFT`. Además, cada 500 eventos (o tras 10 s sin eventos)
-aparece `Lake: N eventos guardados en s3://datalake/raw/streaming/...` (clase 6).
+Los logs muestran throughput, p95, la media de `km_driven` por ventana y cuántos eventos fueron a
+cuarentena (`dlq=N`); a mitad de la corrida del productor debería aparecer `⚠ ALERTA DE DRIFT`.
+Además, cada 500 eventos (o tras 10 s sin eventos) aparece
+`Lake: N eventos guardados en s3://datalake/raw/streaming/...` (clase 6).
+
+Para ver la defensa contra eventos falsos (clase 7): `docker compose run --rm streaming-producer
+python -m app.producer --modo ataque` manda eventos sin firma, alterados, repetidos, viejos y con
+datos absurdos. Van a `raw/dlq/` y al topic `autos-dlq`, y aparece `⚠ ALERTA DLQ` en los logs.
 
 El pipeline de entrenamiento (Airflow), el registro del modelo (MLflow) y la lógica de
 preprocesamiento/scoring (`common/`, `api/app/predict.py`) son los mismos que en `MLOps1_final`.
@@ -221,8 +268,14 @@ MinIO de `MLOps1_final` (compatible con S3), con dos dueños claros:
 datalake/
 ├── raw/car_dekho/car_details_v3.csv              dataset crudo, tal cual
 ├── raw/streaming/fecha=AAAA-MM-DD/lote-*.parquet  eventos + predicción + versión del modelo
+├── raw/dlq/fecha=AAAA-MM-DD/lote-*.jsonl          eventos en cuarentena, con el motivo (clase 7)
+├── raw/auditoria/capa=<capa>/fecha=.../*.jsonl    registro de auditoría de cada capa (clase 7)
 └── curated/car_dekho/car_features.parquet         features + target, con columna split train/test
 ```
+
+Desde la clase 7 el bucket `datalake` tiene **versionado**: si alguien sobrescribe un objeto, la
+versión anterior queda. Cada servicio usa su propio usuario de MinIO, con permiso solo para lo que
+necesita (ver sección 6).
 
 **Por qué MLflow sigue siendo la fuente del modelo.** El Mini TP 6 guarda el modelo en el lake
 con un archivo `PRODUCTION` que dice qué versión usar. Este TP ya tiene MLflow, que hace eso mismo
@@ -240,7 +293,7 @@ que reemplaza a la original al construir cada imagen: el código de las capas no
 
 | Contenedor / capa | Qué hace con el lake |
 |---|---|
-| `lake-preparar` | Crea el bucket y las zonas, copia el dataset crudo a `raw`, guarda las features en `curated` y agrega la metadata al run del modelo en Production. Se puede correr varias veces |
+| `lake-preparar` | Copia el dataset crudo a `raw`, guarda las features en `curated` y agrega al run del modelo en Production la metadata y (clase 7) el hash del modelo con los rangos de entrada. El bucket lo crea `seguridad-minio`. Se puede correr varias veces |
 | las 4 capas | Bajan el modelo de MLflow y leen su metadata del mismo run |
 | `streaming-consumer` | Guarda cada evento con su predicción en `raw/streaming/`, separado por fecha, por lotes de 500 (o tras 10 s sin eventos). Usa un grupo de consumidores y confirma a Redpanda hasta dónde leyó recién después de guardar cada lote: si se reinicia, sigue desde ahí sin perder los eventos que tenía juntados |
 | `graphql` | La query `prediccionesStreaming` lee esos archivos del lake |
@@ -256,8 +309,9 @@ docker compose run --rm streaming-producer             # genera eventos que se g
 En los logs de cada capa aparece `metadata leída de MLflow (lake_metadata.json)`. El contenido del
 lake se ve en la consola de MinIO (`http://localhost:9001`, bucket `datalake`).
 
-> **Si Airflow entrena una versión nueva**, su run todavía no tiene la metadata. Las capas funcionan
-> igual (la calculan como antes y lo avisan en el log) hasta que se vuelva a correr `lake-preparar`.
+> **Si Airflow entrena una versión nueva**, su run todavía no tiene la metadata ni el hash. Hasta que
+> se vuelva a correr `lake-preparar`, las capas calculan la metadata como antes, y el modelo se carga
+> sin verificar (con un warning) solo si `EXIGIR_INTEGRIDAD=false`. Con `true` no se carga (sección 6).
 
 **Diferencias con el mini TP 6:**
 - El modelo no se copia a una carpeta `models/` del lake: MLflow ya lo guarda en MinIO y sigue
@@ -266,3 +320,90 @@ lake se ve en la consola de MinIO (`http://localhost:9001`, bucket `datalake`).
   vencer la retención de Redpanda.
 - El TP usa su propio bucket (`datalake`), separado del bucket `datalake-tp6` que usó el mini TP
   en el mismo MinIO.
+
+## 6. Seguridad (clase 7)
+
+**Idea.** Las 4 capas exponen el mismo modelo, así que tienen que tener **los mismos controles**:
+si una queda abierta, el atacante entra por esa. Todo el código común está en un solo archivo,
+[`seguridad/compartido/seguridad.py`](./seguridad/compartido/seguridad.py), que se copia en cada
+imagen (igual que `predict.py`). Cada capa lo aplica con el mecanismo de su protocolo. Es lo
+practicado en los seis notebooks del Mini-TP 7 ([`clase7/`](../../clase7/)), siguiendo el marco
+**SAIF** (ver [`Diseño de arquitectura.md`](./Diseño%20de%20arquitectura.md)).
+
+**Preparación** (una vez, con el stack de `MLOps1_final` levantado; ver sección 1):
+
+| Paso | Qué hace |
+|---|---|
+| `cp .env.example .env` | Secretos del TP: `JWT_SECRET`, claves de las concesionarias (`HMAC_CLAVES`), usuarios de MinIO, `EXIGIR_INTEGRIDAD`. El `.env` no se sube al repo |
+| `seguridad-certs` | Crea una CA de prueba y el certificado TLS del servidor gRPC en el volumen `certs` |
+| `seguridad-minio` | Crea un usuario de MinIO por servicio con su política, el bucket `datalake` y su versionado |
+
+**Roles** (una sola tabla para todas las capas):
+
+| Acción | `analista` | `admin` |
+|---|---|---|
+| Predecir (REST `/predict`, GraphQL `predict`, gRPC) | sí | sí |
+| Ver el modelo (`/model/info`, `modelInfo`) | sí | sí |
+| Ver predicciones de streaming (`prediccionesStreaming`) | sí | sí |
+| Ver predicciones de otros usuarios (`/predictions/recent`) | no | sí |
+| Ver la auditoría (`auditoria`) | no | sí |
+
+Cualquier otro rol (por ejemplo `invitado`) no puede hacer nada.
+
+**Qué controla cada capa:**
+
+| Capa | Control | Si falla |
+|---|---|---|
+| REST | token y rol (middleware alrededor de la API de MLOps1, sin modificarla) | `401` / `403` |
+| REST | body de 16 KB como máximo · auto válido y dentro de los rangos de train · 60 pedidos por minuto por usuario | `413` / `422` / `429` |
+| GraphQL | token y permiso **por campo** | error `no autorizado` solo en ese campo |
+| GraphQL | introspección apagada · profundidad máxima 5 · costo máximo 200 (`predict` cuesta 10, las listas se multiplican por `limite`) | la consulta se rechaza antes de ejecutarse |
+| gRPC | solo TLS · token y rol (interceptor) | `UNAVAILABLE` / `UNAUTHENTICATED` / `PERMISSION_DENIED` |
+| gRPC | mensajes de 1 MB y lotes de 100 autos como máximo · auto válido | `RESOURCE_EXHAUSTED` / `INVALID_ARGUMENT` |
+| Streaming | firma HMAC con la clave de la concesionaria · anti-replay (`_id` repetido o `_ts` fuera de la ventana) · auto válido | el evento no se puntúa: va a `autos-dlq` y a `raw/dlq/` (`dlq_firma`, `dlq_replay`, `dlq_esquema`) |
+| Streaming | si más del 20 % de los últimos 50 eventos va a cuarentena | `⚠ ALERTA DLQ` en el log (posible ataque) |
+| Lake | un usuario de MinIO por servicio, sin permiso de borrado, bucket versionado | `AccessDenied` |
+
+**Integridad del modelo.** `lake-preparar` guarda en el run de MLflow del modelo el SHA-256 de sus
+archivos (`seguridad_modelo.json`). Al arrancar, cada capa baja el modelo, calcula su hash y lo
+compara **antes** de cargarlo: si alguien lo cambió, no se carga (`/health` muestra
+`model_loaded: false` y las predicciones dan `503`). Funciona porque las capas solo pueden **leer**
+el bucket de modelos: un servicio comprometido no puede cambiar ni el modelo ni su hash.
+
+| `EXIGIR_INTEGRIDAD` | Si el run no tiene `seguridad_modelo.json` | Uso |
+|---|---|---|
+| `false` (el `.env.example`) | se carga igual, con un warning en el log | desarrollo |
+| `true` (si la variable no está) | **no** se carga | producción |
+
+En los dos casos, si el hash existe y no coincide, el modelo no se carga.
+
+**Auditoría.** Cada capa guarda en el lake (`raw/auditoria/capa=<capa>/fecha=.../`) quién hizo
+qué y con qué resultado: fecha y hora, usuario, rol, acción, código de respuesta, hash de la entrada
+y versión del modelo. **Nunca** los datos del auto. Se consulta con la query `auditoria` de
+GraphQL (solo `admin`) o en la consola de MinIO.
+
+**Cómo verificarlo:**
+
+```bash
+# tests unitarios (sin servicios; usa el dataset de MLOps1_final)
+docker compose --profile manual run --rm --build seguridad-tests
+
+# demo de ataques contra las capas levantadas (la versión del Mini-TP 7 sobre el sistema real)
+docker compose --profile manual run --rm demo-ataques --integridad
+```
+
+El demo prueba cada capa con tokens vencidos, roles sin permiso, datos absurdos, consultas
+costosas, mensajes gigantes, canales sin TLS, eventos falsos y accesos al lake fuera de la política.
+Imprime una línea por prueba y termina con `TODO OK`, o con la lista de lo que falló y código de
+salida 1. La prueba de integridad altera una **copia local** del modelo: nunca toca el modelo en
+Production.
+
+**Fuera de alcance** (pendiente para una próxima iteración):
+- El **federado** sigue con FedAvg y `minioadmin`: le faltan la agregación robusta (mediana,
+  *clipping*) del Mini-TP 7 y un usuario de MinIO propio.
+- **Airflow y MLflow** (de `MLOps1_final`) siguen usando `minioadmin`.
+- gRPC usa TLS pero no **mTLS**: el cliente se identifica con el token, no con un certificado.
+- El límite de pedidos de REST es **por contenedor** (en memoria). Con varias réplicas habría que
+  llevarlo a Redis o a un API gateway.
+- Los secretos están en un `.env`. En producción irían a un gestor de secretos (Vault, AWS
+  Secrets Manager) y los certificados los emitiría una CA interna.

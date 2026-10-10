@@ -8,7 +8,7 @@ El pipeline de entrenamiento y el modelo registrado (`xgb_best` en MLflow) no ca
 
 Arriba, el núcleo que no cambia: el pipeline de datos y entrenamiento, y el modelo servido desde el registry. Abajo, los cuatro caminos nuevos hacia ese núcleo — el protocolo y el patrón de tráfico cambian; el modelo detrás es siempre el mismo.
 
-![Diagrama de arquitectura: núcleo compartido (Airflow → MLflow Registry → Modelo cargado) con cuatro capas de acceso independientes — API REST, GraphQL, gRPC y Streaming — cada una con su patrón de tráfico y su tipo de cliente. La capa de Streaming se expande en su propio mecanismo: productor → consumidor → ventana deslizante → alerta de drift. Abajo, el entrenamiento federado: un servidor Flower que coordina rondas de FedAvg con tres concesionarias y registra el modelo aparte en MLflow. Al final, el Data Lake en MinIO: el bucket datalake con las zonas raw y curated, y mlflow-artifacts como zona de modelos.](diagrama-arquitectura.png)
+![Diagrama de arquitectura: núcleo compartido (Airflow → MLflow Registry → Modelo cargado) con cuatro capas de acceso independientes — API REST, GraphQL, gRPC y Streaming — cada una con su patrón de tráfico y su tipo de cliente. La capa de Streaming se expande en su propio mecanismo: productor → consumidor → ventana deslizante → alerta de drift. Abajo, el entrenamiento federado: un servidor Flower que coordina rondas de FedAvg con tres concesionarias y registra el modelo aparte en MLflow. Al final, el Data Lake en MinIO: el bucket datalake con las zonas raw y curated, y mlflow-artifacts como zona de modelos. Entre el núcleo y las capas, una franja de seguridad (clase 7) que atraviesa las cuatro: JWT con roles, validación, límites, auditoría y hash del modelo; gRPC solo con TLS y streaming con firma HMAC y cuarentena (DLQ).](diagrama-arquitectura.png)
 
 *El pipeline de Airflow entrena y registra el modelo en MLflow una sola vez; las cuatro capas de abajo son formas distintas de invocarlo. Streaming es la excepción estructural: no espera una pregunta, consume un flujo y agrega métricas por ventana hasta disparar una alerta. Los bloques de abajo no son capas de acceso: el entrenamiento federado (clase 5) y el Data Lake donde quedan guardados los datos (clase 6).*
 
@@ -95,13 +95,50 @@ sobre el mismo MinIO del TP integrador:
 
 [`clase6/mini_tp6_actividad.ipynb`](../../clase6/mini_tp6_actividad.ipynb)
 
+## Seguridad (clase 7)
+
+**Los mismos controles en las cuatro puertas y en el lake**
+*transversal · defensa en profundidad · SAIF*
+
+Cada clase sumó una forma nueva de llegar al modelo o a los datos, y con ella una superficie de
+ataque. La clase 7 las asegura a todas con el marco **SAIF** (Secure AI Framework). La idea central
+es la **coherencia de controles**: las cuatro capas sirven el mismo modelo, así que si una queda
+más débil que las otras, el atacante entra por esa.
+
+- Un único módulo, `seguridad/compartido/seguridad.py`, se copia en cada imagen (como
+  `predict.py`): mismos tokens, mismos roles, misma validación y mismo formato de auditoría.
+- Cada capa lo aplica con el mecanismo de su protocolo: un middleware alrededor de la API REST de
+  MLOps1 (sin modificarla), permisos por campo y extensiones en GraphQL, un interceptor en gRPC y
+  la validación de cada evento en el consumidor de streaming.
+- El lake deja de usar la credencial de administrador: cada servicio tiene su usuario de MinIO,
+  con permiso solo para lo que necesita. Esto, junto con el hash del modelo, protege la cadena de
+  suministro del modelo.
+
+| Control | Amenaza | Elemento de SAIF |
+|---|---|---|
+| JWT con rol en REST, GraphQL y gRPC (misma tabla de permisos) | acceso no autorizado | Bases sólidas |
+| Validación estricta con rangos de train | inyección, entradas fuera de dominio | Bases sólidas |
+| Límite por usuario (REST), costo y profundidad (GraphQL), tamaño y lote (gRPC) | abuso, DoS, extracción del modelo | Automatizar defensas |
+| Introspección apagada | reconocimiento de la API | Bases sólidas |
+| TLS en gRPC | *man-in-the-middle*, robo del token | Bases sólidas |
+| Firma HMAC por productor, anti-replay, DLQ y alerta | envenenamiento, productores no autorizados | Automatizar defensas + Detectar y actuar |
+| Un usuario de MinIO por servicio, sin borrado, lake versionado | acceso excesivo, servicio comprometido | Bases sólidas + Coherencia de controles |
+| Hash del modelo verificado antes de cargarlo | manipulación del artefacto | Bases sólidas (cadena de suministro) |
+| Auditoría de las 4 capas en el lake + query `auditoria` | uso indebido sin rastro | Detectar y actuar + gobernanza |
+
+**Fuera de alcance** (pendiente): agregación robusta y usuario propio para el federado; Airflow y
+MLflow con `minioadmin`; mTLS en gRPC; límite de pedidos distribuido; gestión de secretos con un
+*secret manager*.
+
+[`clase7/`](../../clase7/) (seis notebooks del Mini-TP 7, uno por capa)
+
 ## Diagrama
 
 El diagrama se edita en [`diagrama-arquitectura.svg`](./diagrama-arquitectura.svg) (texto, con
 comentarios de cómo sumar una clase nueva) y se exporta a PNG con Edge, desde esta carpeta:
 
 ```powershell
-& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --hide-scrollbars --window-size=1150,1592 --screenshot="$pwd\diagrama-arquitectura.png" "$pwd\diagrama-arquitectura.svg"
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --hide-scrollbars --window-size=1150,1667 --screenshot="$pwd\diagrama-arquitectura.png" "$pwd\diagrama-arquitectura.svg"
 ```
 
 Si se agranda el diagrama, cambiar `--window-size` por el nuevo ancho y alto del SVG.
