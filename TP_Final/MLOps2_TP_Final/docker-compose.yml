@@ -225,6 +225,37 @@ services:
     profiles:
       - manual
 
+  # Preparación de seguridad (una vez, después de levantar MLOps1_final):
+  #   docker compose --profile seguridad run --rm seguridad-certs
+  #   docker compose --profile seguridad run --rm seguridad-minio
+  seguridad-certs:
+    image: capas-seguridad
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final/seguridad/Dockerfile
+    command: ["python", "-m", "app.certificados"]
+    volumes:
+      - certs:/certs
+    profiles:
+      - seguridad
+
+  seguridad-minio:
+    # Misma imagen que el MinIO de MLOps1_final (ya está descargada y trae el cliente mc).
+    image: minio/minio:latest
+    entrypoint: ["/bin/sh", "/permisos.sh"]
+    env_file:
+      - ../MLOps1_final/.env
+      - .env
+    volumes:
+      - ./seguridad/minio/permisos.sh:/permisos.sh:ro
+    networks:
+      - mlops-net
+    profiles:
+      - seguridad
+
+volumes:
+  certs:
+
 networks:
   mlops-net:
     external: true
