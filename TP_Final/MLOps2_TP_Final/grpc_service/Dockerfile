@@ -11,6 +11,7 @@ COPY MLOps1_final/common /app/common
 # versión de MLOps2 (clase 6), que lee la metadata del modelo desde MLflow.
 COPY MLOps1_final/api/app/predict.py /app/app/predict_mlflow.py
 COPY MLOps2_TP_Final/datalake/compartido/predict.py /app/app/predict.py
+COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
 COPY MLOps1_final/api/app/__init__.py /app/app/__init__.py
 COPY MLOps2_TP_Final/grpc_service/proto ./proto
 COPY MLOps2_TP_Final/grpc_service/app/server.py /app/app/server.py

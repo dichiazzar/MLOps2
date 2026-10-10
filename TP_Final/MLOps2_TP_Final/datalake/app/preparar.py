@@ -1,18 +1,21 @@
 """Prepara el Data Lake (clase 6). Se corre a mano, una vez y después de cada
 entrenamiento nuevo en Airflow. Se puede repetir sin problemas.
 
-1. Crea el bucket `datalake` con las zonas `raw` y `curated`.
+1. Usa el bucket `datalake` (lo crea seguridad-minio, clase 7) con las zonas `raw` y `curated`.
 2. Copia el dataset crudo a raw/car_dekho/.
 3. Calcula las features con el mismo preprocesamiento y el mismo split que el DAG
    de Airflow, y las guarda en Parquet en curated/car_dekho/.
 4. Agrega `lake_metadata.json` (marcas principales y orden de columnas) al run de
    MLflow del modelo en Production, para que las capas no tengan que recalcularla
    al arrancar. Si ya está, no la vuelve a subir.
+5. Agrega `seguridad_modelo.json` (hash del modelo y rangos de entrada de train) al mismo
+   run (clase 7): las capas verifican el modelo antes de cargarlo. Si ya está, no lo vuelve a subir.
 """
 
 import io
 import logging
 import os
+import tempfile
 from datetime import datetime, timezone
 
 import mlflow
@@ -24,6 +27,7 @@ from sklearn.model_selection import train_test_split
 from app import lago
 from app.predict import METADATA_ARTIFACT
 from app.predict_mlflow import OBJECT_KEY, RAW_BUCKET, _derive_brands_and_features
+from app.seguridad import ARTEFACTO_SEGURIDAD, calcular_rangos, hash_modelo
 from common.constants import MLFLOW_MODEL_NAME, TRAIN_TEST_SIZE, TRAIN_TEST_SPLIT_SEED
 from common.preprocessing import (
     align_columns,
@@ -66,10 +70,17 @@ def features_curadas(df_raw: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(partes, ignore_index=True)
 
 
+def rangos_de_train(df_raw: pd.DataFrame) -> dict:
+    """Rangos de entrada con el mismo split que el DAG (solo la parte de train)."""
+    df = df_raw.drop_duplicates().reset_index(drop=True)
+    bins = pd.qcut(df["selling_price"], q=5, labels=["muy_barato", "barato", "intermedio", "caro", "muy_caro"])
+    df_train, _ = train_test_split(df, test_size=TRAIN_TEST_SIZE, stratify=bins, random_state=TRAIN_TEST_SPLIT_SEED)
+    return calcular_rangos(drop_km_outliers(drop_missing_technical_rows(extraer_columnas_tecnicas(df_train))))
+
+
 def main():
     s3 = lago.s3()
-    lago.crear_bucket_y_zonas(s3)
-    log.info("Bucket '%s' con zonas %s listo.", lago.BUCKET, lago.ZONAS)
+    # El bucket y su versionado los crea seguridad-minio (clase 7): este usuario ya no puede crear buckets.
 
     # 1. raw: el dataset tal cual está en el bucket de MLOps1_final
     crudo = s3.get_object(Bucket=RAW_BUCKET, Key=OBJECT_KEY)["Body"].read()
@@ -112,6 +123,21 @@ def main():
         client.log_dict(mv.run_id, metadata, METADATA_ARTIFACT)
         log.info("Metadata agregada al run %s del modelo v%s (%s).",
                  mv.run_id, mv.version, METADATA_ARTIFACT)
+    if ARTEFACTO_SEGURIDAD in existentes:
+        log.info("El run del modelo v%s ya tiene %s: no se vuelve a subir.", mv.version, ARTEFACTO_SEGURIDAD)
+    else:
+        carpeta = mlflow.artifacts.download_artifacts(
+            artifact_uri=f"models:/{MLFLOW_MODEL_NAME}/{mv.version}", dst_path=tempfile.mkdtemp(prefix="modelo-"))
+        seguridad = {
+            "model_version": mv.version,
+            "run_id": mv.run_id,
+            **hash_modelo(carpeta),
+            "rangos_entrada": rangos_de_train(df_raw),
+            "creado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        client.log_dict(mv.run_id, seguridad, ARTEFACTO_SEGURIDAD)
+        log.info("Hash del modelo v%s (%s...) y rangos de entrada agregados (%s).",
+                 mv.version, seguridad["sha256_total"][:12], ARTEFACTO_SEGURIDAD)
     log.info("Listo.")
 
 

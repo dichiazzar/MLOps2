@@ -63,10 +63,7 @@ class GuardadoEnLake:
         self.offsets = {}  # partición -> próximo offset a leer, de lo ya juntado
         self.lotes = 0
         self.ultimo_evento = time.time()
-        try:
-            lago.crear_bucket_y_zonas()
-        except Exception:
-            logger.exception("Lake: no se pudo crear/verificar el bucket '%s'", lago.BUCKET)
+        # El bucket lo crea seguridad-minio (clase 7): el usuario de esta capa solo puede escribir.
 
     def marcar_leido(self, msg):
         """Registra hasta dónde se leyó, aunque el evento haya sido inválido."""

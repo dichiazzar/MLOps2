@@ -11,6 +11,7 @@ COPY MLOps1_final/common /app/common
 COPY MLOps1_final/api/app/__init__.py /app/app/__init__.py
 COPY MLOps1_final/api/app/predict.py /app/app/predict_mlflow.py
 COPY MLOps2_TP_Final/datalake/compartido/predict.py /app/app/predict.py
+COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
 COPY MLOps2_TP_Final/datalake/compartido/lago.py /app/app/lago.py
 COPY MLOps2_TP_Final/datalake/app/preparar.py /app/app/preparar.py
 

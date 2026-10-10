@@ -74,3 +74,7 @@ def listar(prefijo: str, cliente=None) -> list:
 def leer_parquet(key: str, cliente=None) -> pd.DataFrame:
     obj = (cliente or s3()).get_object(Bucket=BUCKET, Key=key)
     return pd.read_parquet(io.BytesIO(obj["Body"].read()))
+
+
+def leer_bytes(key: str, cliente=None) -> bytes:
+    return (cliente or s3()).get_object(Bucket=BUCKET, Key=key)["Body"].read()

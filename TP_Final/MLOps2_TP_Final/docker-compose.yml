@@ -58,6 +58,15 @@ services:
     restart: unless-stopped
     env_file:
       - ../MLOps1_final/.env
+      - .env
+    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
+    # aunque ya no sea el usuario root.
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_CAPA_REST_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_REST_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_CAPA_REST_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_CAPA_REST_PASSWORD}
     ports:
       - "8010:8000"
     networks:
@@ -72,6 +81,15 @@ services:
     restart: unless-stopped
     env_file:
       - ../MLOps1_final/.env
+      - .env
+    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
+    # aunque ya no sea el usuario root.
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_CAPA_GRAPHQL_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_GRAPHQL_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_CAPA_GRAPHQL_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_CAPA_GRAPHQL_PASSWORD}
     ports:
       - "8001:8001"
     networks:
@@ -86,6 +104,15 @@ services:
     restart: unless-stopped
     env_file:
       - ../MLOps1_final/.env
+      - .env
+    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
+    # aunque ya no sea el usuario root.
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_CAPA_GRPC_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_GRPC_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_CAPA_GRPC_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_CAPA_GRPC_PASSWORD}
     ports:
       - "50051:50051"
     networks:
@@ -126,6 +153,15 @@ services:
         condition: service_healthy
     env_file:
       - ../MLOps1_final/.env
+      - .env
+    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
+    # aunque ya no sea el usuario root.
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_CAPA_STREAMING_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_STREAMING_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_CAPA_STREAMING_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_CAPA_STREAMING_PASSWORD}
     networks:
       - mlops-net
 
@@ -197,6 +233,15 @@ services:
     restart: "no"
     env_file:
       - ../MLOps1_final/.env
+      - .env
+    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
+    # aunque ya no sea el usuario root.
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_LAKE_PREPARAR_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_LAKE_PREPARAR_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_LAKE_PREPARAR_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_LAKE_PREPARAR_PASSWORD}
     networks:
       - mlops-net
     profiles:
