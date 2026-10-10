@@ -16,6 +16,7 @@ COPY MLOps2_TP_Final/seguridad/tests /app/tests
 COPY MLOps2_TP_Final/grpc_service/proto ./proto
 RUN python -m grpc_tools.protoc -I./proto --python_out=. --grpc_python_out=. ./proto/car_price.proto
 COPY MLOps2_TP_Final/grpc_service/app/interceptor.py /app/app/interceptor.py
+COPY MLOps2_TP_Final/streaming_service/app/validacion.py /app/app/validacion.py
 
 ENV PYTHONPATH=/app
 CMD ["python", "-m", "pytest", "tests", "-v"]

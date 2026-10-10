@@ -176,6 +176,9 @@ services:
       dockerfile: MLOps2_TP_Final/streaming_service/Dockerfile
     container_name: capas-streaming-producer
     command: ["python", "-m", "app.producer"]
+    # Clase 7: claves HMAC de las concesionarias (HMAC_CLAVES) para firmar los eventos.
+    env_file:
+      - .env
     depends_on:
       redpanda:
         condition: service_healthy

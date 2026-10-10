@@ -14,6 +14,7 @@ COPY MLOps2_TP_Final/datalake/compartido/predict.py /app/app/predict.py
 COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
 COPY MLOps2_TP_Final/datalake/compartido/lago.py /app/app/lago.py
 COPY MLOps1_final/api/app/__init__.py /app/app/__init__.py
+COPY MLOps2_TP_Final/streaming_service/app/validacion.py /app/app/validacion.py
 COPY MLOps2_TP_Final/streaming_service/app/consumer.py /app/app/consumer.py
 COPY MLOps2_TP_Final/streaming_service/app/producer.py /app/app/producer.py
 

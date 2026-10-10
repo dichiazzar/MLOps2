@@ -18,6 +18,12 @@ El consumidor usa un grupo y confirma a Redpanda hasta dónde leyó (commit) rec
 DESPUÉS de guardar cada lote en el lake. Si se reinicia o se cae con eventos
 juntados sin guardar, al volver los lee de nuevo y no se pierden. (Solo si se cae
 justo entre guardar un lote y confirmarlo, ese lote puede quedar guardado dos veces.)
+
+Clase 7 (seguridad): cada evento se valida antes de puntuarlo (app/validacion.py: firma
+HMAC por productor, anti-replay, esquema estricto). Lo que no pasa NO se puntúa: va al
+topic `autos-dlq` y al lake (raw/dlq/fecha=.../), y si más del 20 % de los últimos 50
+eventos va a la DLQ se emite `ALERTA DLQ` (posible ataque en curso). Cada evento queda
+en la auditoría con su productor y su destino.
 """
 
 import json
@@ -28,19 +34,21 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-from kafka import KafkaConsumer, TopicPartition
+from kafka import KafkaConsumer, KafkaProducer, TopicPartition
 from kafka.structs import OffsetAndMetadata
 
 from app import lago
 
-from app.predict import ModelState, load_production_model, predict_price
-from common.schemas import CarRawInput
+from app.predict import ModelState, load_production_model, predict_price, rangos_entrada
+from app.seguridad import AlertaPorVentana, Auditor, EscritorPorLotes, Identidad, VistosRecientes, claves_hmac
+from app.validacion import validar_evento
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BROKER = "redpanda:9092"
 TOPIC = "autos"
+TOPIC_DLQ = "autos-dlq"   # clase 7: eventos en cuarentena
 
 VENTANA_SEGUNDOS = 1.0
 CADA_N_EVENTOS = 50
@@ -103,23 +111,6 @@ class GuardadoEnLake:
         self.offsets = {}
 
 
-def _car_from_event(ev: dict) -> CarRawInput:
-    return CarRawInput(
-        name=ev["name"],
-        year=ev["year"],
-        km_driven=ev["km_driven"],
-        fuel=ev["fuel"],
-        seller_type=ev["seller_type"],
-        transmission=ev["transmission"],
-        owner=ev["owner"],
-        mileage=ev["mileage"],
-        engine=ev["engine"],
-        max_power=ev["max_power"],
-        torque=ev["torque"],
-        seats=ev["seats"],
-    )
-
-
 def main():
     state: ModelState = load_production_model()
     logger.info("Modelo cargado (versión %s). Escuchando topic '%s'...", state.model_version, TOPIC)
@@ -141,21 +132,49 @@ def main():
     t_inicio = time.time()
     lake = GuardadoEnLake(consumer)
 
+    # Clase 7: validación de cada evento, cuarentena (DLQ), alerta y auditoría
+    claves = claves_hmac()
+    vistos = VistosRecientes()
+    alerta = AlertaPorVentana(n=50, umbral=0.20)
+    dlq_lake = EscritorPorLotes("raw/dlq", lago.subir_bytes, cada_n=100)
+    auditor = Auditor("streaming", lago.subir_bytes, cada_n=500)
+    dlq_topic = KafkaProducer(bootstrap_servers=BROKER,
+                              value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"))
+    en_dlq = 0
+
     for msg in _mensajes(consumer, lake):
         ev = msg.value
         lake.marcar_leido(msg)
         t0 = time.perf_counter()
+        car, destino, motivo = validar_evento(ev, claves, vistos, rangos_entrada())
+        productor = ev.get("_productor") if isinstance(ev, dict) else None
+        auditor.registrar(Identidad(str(productor), "productor") if productor else None,
+                          "evento", destino, entrada=ev, detalle=motivo, model_version=state.model_version)
+        aviso = alerta.registrar(destino != "ok", destino, productor)
+        if aviso and aviso["tipo"] == "INICIO":
+            logger.warning("⚠ ALERTA DLQ: %.0f%% de los últimos 50 eventos fue a cuarentena "
+                           "(motivos %s, productores %s) — posible ataque en curso.",
+                           aviso["tasa"] * 100, aviso["motivos"], aviso["productores"])
+        elif aviso:
+            logger.info("Fin de la alerta DLQ: la tasa volvió a %.0f%%.", aviso["tasa"] * 100)
+        if destino != "ok":
+            en_dlq += 1
+            registro = {"destino": destino, "motivo": motivo, "productor": productor,
+                        "evento": ev, "recibido": time.time()}
+            dlq_topic.send(TOPIC_DLQ, registro)
+            dlq_lake.agregar(registro)
+            continue
         try:
-            car = _car_from_event(ev)
             price = predict_price(state, car)
         except Exception:
-            logger.exception("Evento inválido, se descarta: %s", ev)
+            logger.exception("Error al puntuar un evento válido")
             continue
         latencias.append((time.perf_counter() - t0) * 1000)
         lake.agregar({
             **{k: v for k, v in ev.items() if not k.startswith("_")},
             "predicted_price": price,
             "model_version": state.model_version,
+            "productor": ev.get("_productor"),
             "event_time": ev.get("_event_time"),
             "scored_at": time.time(),
         })
@@ -171,8 +190,8 @@ def main():
             throughput = len(latencias) / (time.time() - t_inicio)
             p95 = float(np.percentile(latencias, 95))
             logger.info(
-                "evento %d | throughput=%.0f ev/s | p95=%.2fms | precio=%.0f | media_km(ventana)=%.0f",
-                procesados, throughput, p95, price, media_km,
+                "evento %d | throughput=%.0f ev/s | p95=%.2fms | precio=%.0f | media_km(ventana)=%.0f | dlq=%d",
+                procesados, throughput, p95, price, media_km, en_dlq,
             )
             if media_km > UMBRAL_KM_DRIFT:
                 logger.warning(
