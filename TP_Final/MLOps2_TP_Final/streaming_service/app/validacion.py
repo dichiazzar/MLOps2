@@ -8,10 +8,21 @@ El id se marca como visto solo si la firma es válida y el `_ts` está en la ven
 (un atacante sin clave no puede "quemar" ids de otros).
 """
 
+import json
+
 from app.seguridad import EntradaInvalida, ts_en_ventana, validar_auto, verificar_firma
 
 CAMPOS_AUTO = ["name", "year", "km_driven", "fuel", "seller_type", "transmission", "owner",
                "mileage", "engine", "max_power", "torque", "seats"]
+
+
+def decodificar(crudo: bytes):
+    """Bytes del mensaje -> evento. Si no es JSON válido devuelve el texto (validar_evento lo
+    manda a dlq_esquema): un mensaje basura no puede tirar abajo al consumidor."""
+    try:
+        return json.loads(crudo.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        return crudo[:500].decode("utf-8", errors="replace")
 
 
 def validar_evento(ev, claves, vistos, rangos):

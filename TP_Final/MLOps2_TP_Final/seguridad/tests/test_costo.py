@@ -43,3 +43,22 @@ def test_costo_fragmentos_y_variables():
     assert c(q) == 1 + (1 + 500 * 4)                            # variable = peor caso (500)
     q2 = "{ ...G } fragment G on Query { prediccionesStreaming(limite: 50) { items { name } } }"
     assert c(q2) == 1 + (1 + 50 * 1)
+
+
+def test_costo_cadena_de_fragmentos_no_es_exponencial():
+    # F0 usa F1 dos veces, F1 usa F2 dos veces, ...: sin memoizar serían 2^30 recursiones.
+    import time as _t
+    frags = " ".join(f"fragment F{i} on Query {{ ...F{i + 1} ...F{i + 1} }}" for i in range(30))
+    q = "{ ...F0 } " + frags + " fragment F30 on Query { modelInfo { modelName } }"
+    t0 = _t.time()
+    costo = c(q)
+    assert _t.time() - t0 < 1.0 and costo > COSTO_MAX
+
+
+def test_revisar_consulta():
+    from app.costo import MAX_FRAGMENTOS, MAX_LARGO, revisar_consulta
+    assert revisar_consulta("{ modelInfo { modelName } }") is None
+    assert revisar_consulta(None) is None
+    assert "larga" in revisar_consulta("{ a }" + " " * MAX_LARGO)
+    muchos = "{ " + " ".join("...F" for _ in range(MAX_FRAGMENTOS + 1)) + " }"
+    assert "fragmentos" in revisar_consulta(muchos)

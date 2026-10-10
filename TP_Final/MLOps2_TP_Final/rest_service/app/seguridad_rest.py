@@ -86,6 +86,9 @@ class SeguridadREST:
                 validar_auto(json.loads(cuerpo or b"null"), self.rangos())
             except ValueError as e:   # EntradaInvalida y JSONDecodeError son ValueError
                 return await self._cortar(scope, receive, send, 422, str(e), ident, accion, entrada=cuerpo)
+            except RecursionError:    # JSON anidado miles de niveles: no es un auto
+                return await self._cortar(scope, receive, send, 422, "JSON demasiado anidado", ident, accion,
+                                          entrada=cuerpo)
             receive = _receive_con(cuerpo, receive)
 
         estado = {}

@@ -357,10 +357,11 @@ Cualquier otro rol (por ejemplo `invitado`) no puede hacer nada.
 | REST | token y rol (middleware alrededor de la API de MLOps1, sin modificarla) | `401` / `403` |
 | REST | body de 16 KB como máximo · auto válido y dentro de los rangos de train · 60 pedidos por minuto por usuario | `413` / `422` / `429` |
 | GraphQL | token y permiso **por campo** | error `no autorizado` solo en ese campo |
+| GraphQL | consultas de más de 10.000 caracteres o más de 30 fragmentos | `400` antes de analizarla (evita la "bomba de fragmentos") |
 | GraphQL | introspección apagada · profundidad máxima 5 · costo máximo 200 (`predict` cuesta 10, las listas se multiplican por `limite`) | la consulta se rechaza antes de ejecutarse |
 | gRPC | solo TLS · token y rol (interceptor) | `UNAVAILABLE` / `UNAUTHENTICATED` / `PERMISSION_DENIED` |
 | gRPC | mensajes de 1 MB y lotes de 100 autos como máximo · auto válido | `RESOURCE_EXHAUSTED` / `INVALID_ARGUMENT` |
-| Streaming | firma HMAC con la clave de la concesionaria · anti-replay (`_id` repetido o `_ts` fuera de la ventana) · auto válido | el evento no se puntúa: va a `autos-dlq` y a `raw/dlq/` (`dlq_firma`, `dlq_replay`, `dlq_esquema`) |
+| Streaming | mensaje que no es JSON · firma HMAC con la clave de la concesionaria · anti-replay (`_id` repetido o `_ts` fuera de la ventana) · auto válido | el evento no se puntúa: va a `autos-dlq` y a `raw/dlq/` (`dlq_firma`, `dlq_replay`, `dlq_esquema`) |
 | Streaming | si más del 20 % de los últimos 50 eventos va a cuarentena | `⚠ ALERTA DLQ` en el log (posible ataque) |
 | Lake | un usuario de MinIO por servicio, sin permiso de borrado, bucket versionado | `AccessDenied` |
 
@@ -368,7 +369,10 @@ Cualquier otro rol (por ejemplo `invitado`) no puede hacer nada.
 archivos (`seguridad_modelo.json`). Al arrancar, cada capa baja el modelo, calcula su hash y lo
 compara **antes** de cargarlo: si alguien lo cambió, no se carga (`/health` muestra
 `model_loaded: false` y las predicciones dan `503`). Funciona porque las capas solo pueden **leer**
-el bucket de modelos: un servicio comprometido no puede cambiar ni el modelo ni su hash.
+el bucket de modelos, y cada contenedor recibe solo sus propios secretos (no el `.env` entero): un
+servicio comprometido no puede cambiar ni el modelo ni su hash. Ojo: la API de MLflow no tiene
+autenticación dentro de la red Docker, así que quien llegue a esa red podría cambiar qué versión
+está en Production (queda fuera de alcance, ver abajo).
 
 | `EXIGIR_INTEGRIDAD` | Si el run no tiene `seguridad_modelo.json` | Uso |
 |---|---|---|
@@ -401,7 +405,8 @@ Production.
 **Fuera de alcance** (pendiente para una próxima iteración):
 - El **federado** sigue con FedAvg y `minioadmin`: le faltan la agregación robusta (mediana,
   *clipping*) del Mini-TP 7 y un usuario de MinIO propio.
-- **Airflow y MLflow** (de `MLOps1_final`) siguen usando `minioadmin`.
+- **Airflow y MLflow** (de `MLOps1_final`) siguen usando `minioadmin`, y la API de MLflow no tiene
+  autenticación.
 - gRPC usa TLS pero no **mTLS**: el cliente se identifica con el token, no con un certificado.
 - El límite de pedidos de REST es **por contenedor** (en memoria). Con varias réplicas habría que
   llevarlo a Redis o a un API gateway.

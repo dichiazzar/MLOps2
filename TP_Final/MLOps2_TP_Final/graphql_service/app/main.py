@@ -27,7 +27,7 @@ from typing import Optional
 import pandas as pd
 
 import strawberry
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from graphql import NoSchemaIntrospectionCustomRule
 from strawberry.extensions import AddValidationRules, QueryDepthLimiter, SchemaExtension
 from strawberry.fastapi import GraphQLRouter
@@ -35,7 +35,7 @@ from strawberry.permission import BasePermission
 from strawberry.types import Info
 
 from app import lago
-from app.costo import LimiteCosto
+from app.costo import LimiteCosto, revisar_consulta
 from app.predict import ModelState, load_production_model, predict_price, rangos_entrada
 from app.seguridad import Auditor, EntradaInvalida, TokenInvalido, autorizado, validar_auto, verificar_token
 from common.schemas import (
@@ -76,7 +76,22 @@ def permiso(accion: str):
 
 
 async def contexto(request: Request) -> dict:
-    """El rol sale del JWT verificado; sin token válido, la identidad es anónima (None)."""
+    """El rol sale del JWT verificado; sin token válido, la identidad es anónima (None).
+
+    Antes que nada se revisa el tamaño de la consulta (largo y cantidad de fragmentos):
+    se rechaza con 400 sin que strawberry llegue a analizarla (ver app/costo.py).
+    """
+    texto = request.query_params.get("query")
+    if request.method == "POST":
+        try:
+            cuerpo = await request.json()
+            texto = cuerpo.get("query") if isinstance(cuerpo, dict) else None
+        except Exception:
+            texto = None   # cuerpo inválido: strawberry responde el error de siempre
+    motivo_consulta = revisar_consulta(texto)
+    if motivo_consulta:
+        AUDITOR.registrar(None, "operacion", "rechazada", detalle=motivo_consulta)
+        raise HTTPException(status_code=400, detail=motivo_consulta)
     try:
         identidad = verificar_token(request.headers.get("authorization"))
         motivo = None

@@ -56,3 +56,18 @@ def test_esquema():
 
 def test_no_es_dict():
     assert validar_evento("basura", CLAVES, s.VistosRecientes(), None)[1] == "dlq_esquema"
+
+
+def test_decodificar_mensaje_malformado():
+    from app.validacion import decodificar
+    assert decodificar(b'{"a": 1}') == {"a": 1}
+    for crudo in (b"\xff\xfe no es utf8", b"no es json", b"[" * 5000):
+        ev = decodificar(crudo)
+        assert isinstance(ev, str)                       # validar_evento lo manda a dlq_esquema
+        assert validar_evento(ev, CLAVES, s.VistosRecientes(), None)[1] == "dlq_esquema"
+
+
+def test_productor_no_hasheable_no_rompe():
+    e = ev()
+    e["_productor"] = ["lista"]
+    assert validar_evento(e, CLAVES, s.VistosRecientes(), None)[1] == "dlq_firma"

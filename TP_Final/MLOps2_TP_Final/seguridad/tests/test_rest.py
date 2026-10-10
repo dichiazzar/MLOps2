@@ -109,3 +109,9 @@ def test_ruta_desconocida_pide_token(entorno):
     cli, _ = entorno
     assert cli.get("/no-existe").status_code == 401
     assert cli.get("/no-existe", headers=h()).status_code == 404
+
+
+def test_json_muy_anidado_422(entorno):
+    cli, _ = entorno
+    r = cli.post("/predict", content=b"[" * 5000, headers={**h(), "Content-Type": "application/json"})
+    assert r.status_code == 422

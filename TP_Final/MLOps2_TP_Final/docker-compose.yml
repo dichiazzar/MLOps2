@@ -58,8 +58,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../MLOps1_final/.env
-      - .env
-    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Clase 7: cada servicio recibe SOLO los secretos que necesita (no el .env del TP entero):
+    # su propio usuario de MinIO (acceso mínimo, no minioadmin) y, si corresponde, JWT o HMAC.
     # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
     # aunque ya no sea el usuario root.
     environment:
@@ -67,6 +67,10 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_REST_PASSWORD}
       MINIO_ROOT_USER: ${MINIO_CAPA_REST_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_CAPA_REST_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_MINUTOS: ${JWT_MINUTOS:-60}
+      LIMITE_POR_MINUTO: ${LIMITE_POR_MINUTO:-60}
+      EXIGIR_INTEGRIDAD: ${EXIGIR_INTEGRIDAD:-true}
     ports:
       - "8010:8000"
     networks:
@@ -81,8 +85,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../MLOps1_final/.env
-      - .env
-    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Clase 7: cada servicio recibe SOLO los secretos que necesita (no el .env del TP entero):
+    # su propio usuario de MinIO (acceso mínimo, no minioadmin) y, si corresponde, JWT o HMAC.
     # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
     # aunque ya no sea el usuario root.
     environment:
@@ -90,6 +94,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_GRAPHQL_PASSWORD}
       MINIO_ROOT_USER: ${MINIO_CAPA_GRAPHQL_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_CAPA_GRAPHQL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      EXIGIR_INTEGRIDAD: ${EXIGIR_INTEGRIDAD:-true}
     ports:
       - "8001:8001"
     networks:
@@ -104,8 +110,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../MLOps1_final/.env
-      - .env
-    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Clase 7: cada servicio recibe SOLO los secretos que necesita (no el .env del TP entero):
+    # su propio usuario de MinIO (acceso mínimo, no minioadmin) y, si corresponde, JWT o HMAC.
     # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
     # aunque ya no sea el usuario root.
     environment:
@@ -113,6 +119,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_GRPC_PASSWORD}
       MINIO_ROOT_USER: ${MINIO_CAPA_GRPC_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_CAPA_GRPC_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      EXIGIR_INTEGRIDAD: ${EXIGIR_INTEGRIDAD:-true}
     ports:
       - "50051:50051"
     # Clase 7: certificado TLS del servidor (lo crea seguridad-certs), solo lectura.
@@ -156,8 +164,8 @@ services:
         condition: service_healthy
     env_file:
       - ../MLOps1_final/.env
-      - .env
-    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Clase 7: cada servicio recibe SOLO los secretos que necesita (no el .env del TP entero):
+    # su propio usuario de MinIO (acceso mínimo, no minioadmin) y, si corresponde, JWT o HMAC.
     # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
     # aunque ya no sea el usuario root.
     environment:
@@ -165,6 +173,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_CAPA_STREAMING_PASSWORD}
       MINIO_ROOT_USER: ${MINIO_CAPA_STREAMING_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_CAPA_STREAMING_PASSWORD}
+      HMAC_CLAVES: ${HMAC_CLAVES}
+      EXIGIR_INTEGRIDAD: ${EXIGIR_INTEGRIDAD:-true}
     networks:
       - mlops-net
 
@@ -176,9 +186,9 @@ services:
       dockerfile: MLOps2_TP_Final/streaming_service/Dockerfile
     container_name: capas-streaming-producer
     command: ["python", "-m", "app.producer"]
-    # Clase 7: claves HMAC de las concesionarias (HMAC_CLAVES) para firmar los eventos.
-    env_file:
-      - .env
+    # Clase 7: claves HMAC de las concesionarias para firmar los eventos (y nada más del .env).
+    environment:
+      HMAC_CLAVES: ${HMAC_CLAVES}
     depends_on:
       redpanda:
         condition: service_healthy
@@ -239,8 +249,8 @@ services:
     restart: "no"
     env_file:
       - ../MLOps1_final/.env
-      - .env
-    # Clase 7: cada servicio usa su propio usuario de MinIO (acceso mínimo), no minioadmin.
+    # Clase 7: cada servicio recibe SOLO los secretos que necesita (no el .env del TP entero):
+    # su propio usuario de MinIO (acceso mínimo, no minioadmin) y, si corresponde, JWT o HMAC.
     # Se pisan también MINIO_ROOT_* porque es el nombre que lee el código de MLOps1 y de lago.py,
     # aunque ya no sea el usuario root.
     environment:

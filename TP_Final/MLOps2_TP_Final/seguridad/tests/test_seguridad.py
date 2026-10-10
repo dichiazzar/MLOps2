@@ -317,3 +317,19 @@ def test_escritor_lake_caido_no_rompe(caplog):
 def test_escritor_vaciar_sin_filas():
     esc = s.EscritorPorLotes("raw/x", lambda c, k: None, iniciar_hilo=False)
     assert esc.vaciar() is None
+
+
+def test_agregar_no_sube_en_linea_con_hilo():
+    # Con el hilo en marcha, agregar() nunca sube al lake en el mismo hilo (no bloquea el event loop).
+    import threading
+    import time as _t
+    subido = threading.Event()
+
+    def subir_lento(cuerpo, key):
+        _t.sleep(1.5)
+        subido.set()
+    esc = s.EscritorPorLotes("raw/x", subir_lento, cada_n=1, cada_seg=60, iniciar_hilo=True)
+    t0 = _t.time()
+    esc.agregar({"a": 1})
+    assert _t.time() - t0 < 0.2
+    assert subido.wait(5)                                # igual se sube, en segundo plano

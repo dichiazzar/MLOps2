@@ -41,7 +41,7 @@ from app import lago
 
 from app.predict import ModelState, load_production_model, predict_price, rangos_entrada
 from app.seguridad import AlertaPorVentana, Auditor, EscritorPorLotes, Identidad, VistosRecientes, claves_hmac
-from app.validacion import validar_evento
+from app.validacion import decodificar, validar_evento
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -123,7 +123,8 @@ def main():
         # sigue desde ahí y no vuelve a guardar en el lake eventos ya guardados.
         group_id="streaming-consumer",
         enable_auto_commit=False,   # se confirma a mano, después de guardar en el lake
-        value_deserializer=lambda b: json.loads(b.decode("utf-8")),
+        # Clase 7: sin deserializador; cada mensaje se decodifica en el loop (validacion.decodificar)
+        # para que un mensaje que no es JSON vaya a la DLQ en vez de romper el consumidor.
     )
 
     latencias = []
@@ -143,7 +144,7 @@ def main():
     en_dlq = 0
 
     for msg in _mensajes(consumer, lake):
-        ev = msg.value
+        ev = decodificar(msg.value)
         lake.marcar_leido(msg)
         t0 = time.perf_counter()
         car, destino, motivo = validar_evento(ev, claves, vistos, rangos_entrada())

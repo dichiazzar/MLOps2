@@ -27,7 +27,9 @@ def s3():
         endpoint_url=os.environ["MINIO_ENDPOINT"],
         aws_access_key_id=os.environ["MINIO_ROOT_USER"],
         aws_secret_access_key=os.environ["MINIO_ROOT_PASSWORD"],
-        config=Config(signature_version="s3v4"),
+        # Clase 7: timeouts cortos para que un MinIO colgado no trabe a nadie mucho tiempo.
+        config=Config(signature_version="s3v4", connect_timeout=3, read_timeout=10,
+                      retries={"max_attempts": 2}),
         region_name="us-east-1",
     )
 

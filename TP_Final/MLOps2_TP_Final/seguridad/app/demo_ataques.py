@@ -94,6 +94,13 @@ def probar_graphql(t):
     chequear("GraphQL", "profundidad 7", "exceeds maximum operation depth", gql(profunda, t["analista"]))
     alias = "mutation { " + " ".join(f"p{i}: predict(car: {GQL_AUTO}) {{ predictedPrice }}" for i in range(25)) + " }"
     chequear("GraphQL", "25 alias de predict", "consulta demasiado costosa", gql(alias, t["analista"]))
+    # cadena de fragmentos repetidos: sin el control previo, la validación tardaba un tiempo exponencial
+    frags = " ".join(f"fragment F{i} on Query {{ ...F{i + 1} ...F{i + 1} }}" for i in range(30))
+    bomba = "{ ...F0 } " + frags + " fragment F30 on Query { modelInfo { modelName } }"
+    t0 = time.time()
+    r = requests.post(GQL, json={"query": bomba}, timeout=20)
+    chequear("GraphQL", "bomba de fragmentos (sin token)", "400 rápido",
+             f"{r.status_code} {'rápido' if time.time() - t0 < 2 else 'lento'}")
     chequear("GraphQL", "auditoria con analista", "no autorizado",
              gql('{ auditoria(capa: "rest") { total } }', t["analista"]))
     chequear("GraphQL", "auditoria con admin", "OK", gql('{ auditoria(capa: "rest") { total } }', t["admin"]))
@@ -156,10 +163,14 @@ def probar_streaming():
     alterado = firmado()
     alterado["km_driven"] = 1
     ataque = [{**firmado(), "_firma": "x" * 64}, alterado, legitimos[0], firmado(year=3000)]
-    for e in legitimos + ataque:
+    # mensaje que ni siquiera es JSON: antes dejaba al consumidor reiniciándose para siempre
+    crudo = KafkaProducer(bootstrap_servers="redpanda:9092")
+    crudo.send("autos", b"\xff\xfe esto no es JSON")
+    crudo.flush()
+    for e in legitimos + ataque:      # los legítimos van DESPUÉS de la basura: prueban que sigue vivo
         prod.send("autos", e)
     prod.flush()
-    print("  publicados 5 legítimos y 4 de ataque; esperando que el consumidor guarde los lotes (25 s)...")
+    print("  publicados 1 mensaje basura, 5 legítimos y 4 de ataque; esperando los lotes (25 s)...")
     time.sleep(25)
     admin = s3("MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD")
     hoy = datetime.now(timezone.utc).date().isoformat()

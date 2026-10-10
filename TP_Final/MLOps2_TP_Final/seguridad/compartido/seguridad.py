@@ -130,7 +130,10 @@ def claves_hmac() -> dict:
 
 def verificar_firma(evento: dict, claves: dict) -> Optional[str]:
     """None si la firma es válida; si no, el motivo del rechazo."""
-    clave = claves.get(evento.get("_productor"))
+    productor = evento.get("_productor")
+    if not isinstance(productor, str):          # una lista u objeto no se puede buscar en el dict
+        return "productor desconocido"
+    clave = claves.get(productor)
     if clave is None:
         return "productor desconocido"
     firma = evento.get(CAMPO_FIRMA)
@@ -301,6 +304,8 @@ class EscritorPorLotes:
     """Junta filas y las sube al lake como JSON Lines cada `cada_n` filas o `cada_seg` segundos.
 
     Si el lake falla, las filas salen por el log y el servicio sigue.
+    Con el hilo en marcha, `agregar` nunca sube en el mismo hilo: solo avisa al hilo de fondo.
+    Así una subida lenta (MinIO colgado) no bloquea el event loop de REST o GraphQL.
     """
 
     def __init__(self, prefijo: str, subir: Callable[[bytes, str], None], cada_n: int = 50,
@@ -309,6 +314,8 @@ class EscritorPorLotes:
         self._filas: list = []
         self._lotes = 0
         self._lock = threading.Lock()
+        self._hay_lote = threading.Event()
+        self._con_hilo = iniciar_hilo
         if iniciar_hilo:
             threading.Thread(target=self._cada_tanto, daemon=True).start()
 
@@ -317,7 +324,10 @@ class EscritorPorLotes:
             self._filas.append(fila)
             lleno = len(self._filas) >= self.cada_n
         if lleno:
-            self.vaciar()
+            if self._con_hilo:
+                self._hay_lote.set()     # lo sube el hilo de fondo
+            else:
+                self.vaciar()
 
     def vaciar(self) -> Optional[str]:
         with self._lock:
@@ -340,7 +350,8 @@ class EscritorPorLotes:
 
     def _cada_tanto(self):
         while True:
-            time.sleep(self.cada_seg)
+            self._hay_lote.wait(self.cada_seg)   # se despierta por lote lleno o cada cada_seg
+            self._hay_lote.clear()
             self.vaciar()
 
 
