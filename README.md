@@ -14,14 +14,15 @@ TPs/
 ├── clase4/      Mini TP 4: modelo aplicado sobre un flujo de datos (streaming)
 ├── clase5/      Mini TP 5: aprendizaje federado (FedAvg)
 ├── clase6/      Mini TP 6: modelo guardado y servido desde un Data Lake (MinIO)
+├── clase7/      Mini TP 7: seguridad con SAIF de las 6 capas (REST, GraphQL, gRPC, streaming, federado, data lake)
 └── TP_Final/
     ├── MLOps1_final/                         TP final de MLOps 1 (base de referencia)
     └── MLOps2_TP_Final/   TP final de MLOps 2 (en progreso)
 ```
 
-## Mini TPs (clase 1 a clase 6)
+## Mini TPs (clase 1 a clase 7)
 
-Son 6 trabajos chicos, uno por clase. Todos están terminados. Cada uno es un notebook de Jupyter.
+Son 7 trabajos chicos, uno por clase. Todos están terminados. Cada uno es un notebook de Jupyter.
 
 | Carpeta | Notebook | Tema |
 |---|---|---|
@@ -31,6 +32,12 @@ Son 6 trabajos chicos, uno por clase. Todos están terminados. Cada uno es un no
 | clase4 | `mini_tp4_actividad.ipynb` | Predecir sobre un flujo continuo de eventos |
 | clase5 | `mini_tp5_federado_actividad.ipynb` | Entrenar con aprendizaje federado y comparar contra el entrenamiento normal |
 | clase6 | `mini_tp6_actividad.ipynb` | Subir el modelo a un Data Lake (MinIO) y cargarlo desde ahí para predecir |
+| clase7 | `mini_tp7_rest_actividad.ipynb` | Proteger la API REST del modelo: API key, JWT con roles, validación de entrada, límite de consultas y registro de auditoría (SAIF) |
+| clase7 | `mini_tp7_graphql_actividad.ipynb` | Proteger la API GraphQL del modelo: sin introspección, límite de profundidad y de costo, permisos por campo con JWT y registro de auditoría (SAIF) |
+| clase7 | `mini_tp7_grpc_actividad.ipynb` | Proteger el servicio gRPC: interceptor con JWT y roles, mTLS con certificados de prueba, límite de tamaño de mensaje y registro de auditoría (SAIF) |
+| clase7 | `mini_tp7_streaming_actividad.ipynb` | Proteger el stream contra el envenenamiento: firma HMAC por productor, esquema con rangos reales, plausibilidad, anti-replay, cuarentena (DLQ) con alerta y registro de procedencia (SAIF) |
+| clase7 | `mini_tp7_federado_actividad.ipynb` | Proteger el entrenamiento federado: agregación robusta (mediana, media recortada), clipping, privacidad diferencial y exclusión de clientes sospechosos (SAIF) |
+| clase7 | `mini_tp7_datalake_actividad.ipynb` | Proteger el Data Lake (MinIO): usuarios con acceso mínimo por zona, checksum + versión registrada del modelo, versionado, URLs prefirmadas y registro de accesos (SAIF). Necesita el MinIO de MLOps1_final |
 
 ## TP Final
 
