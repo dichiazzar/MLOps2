@@ -202,6 +202,29 @@ services:
     profiles:
       - lake
 
+  # --- 7. Seguridad (clase 7): herramientas ---
+  # Tests unitarios de seguridad.py:  docker compose --profile manual run --rm --build seguridad-tests
+  seguridad-tests:
+    build:
+      context: ..
+      dockerfile: MLOps2_TP_Final/seguridad/Dockerfile
+    image: capas-seguridad
+    volumes:
+      - ../MLOps1_final/dataset:/datos:ro
+    environment:
+      DATASET_CSV: /datos/Car details v3.csv
+    profiles:
+      - manual
+
+  # Emitir un token:  docker compose --profile manual run --rm emitir-token jaime analista
+  emitir-token:
+    image: capas-seguridad
+    env_file:
+      - .env
+    entrypoint: ["python", "-m", "app.emitir_token"]
+    profiles:
+      - manual
+
 networks:
   mlops-net:
     external: true
