@@ -14,6 +14,7 @@ COPY MLOps2_TP_Final/datalake/compartido/predict.py /app/app/predict.py
 COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
 COPY MLOps2_TP_Final/datalake/compartido/lago.py /app/app/lago.py
 COPY MLOps1_final/api/app/__init__.py /app/app/__init__.py
+COPY MLOps2_TP_Final/graphql_service/app/costo.py /app/app/costo.py
 COPY MLOps2_TP_Final/graphql_service/app/main.py /app/app/main.py
 
 ENV PYTHONPATH=/app

@@ -10,6 +10,7 @@ COPY MLOps1_final/common /app/common
 COPY MLOps2_TP_Final/seguridad/app /app/app
 COPY MLOps2_TP_Final/seguridad/compartido/seguridad.py /app/app/seguridad.py
 COPY MLOps2_TP_Final/rest_service/app/seguridad_rest.py /app/app/seguridad_rest.py
+COPY MLOps2_TP_Final/graphql_service/app/costo.py /app/app/costo.py
 COPY MLOps2_TP_Final/seguridad/tests /app/tests
 
 ENV PYTHONPATH=/app
