@@ -17,7 +17,7 @@ TPs/
 ├── clase7/      Mini TP 7: seguridad con SAIF de las 6 capas (REST, GraphQL, gRPC, streaming, federado, data lake)
 └── TP_Final/
     ├── MLOps1_final/      TP final de MLOps 1 (base de referencia)
-    └── MLOps2_TP_Final/   TP final de MLOps 2 (en progreso)
+    └── MLOps2_TP_Final/   TP final de MLOps 2 (terminado)
 ```
 
 ## Mini TPs (clase 1 a clase 7)
@@ -76,4 +76,4 @@ MinIO; el modelo se verifica con un hash antes de cargarse; y todo queda en un r
 - Cómo levantarlo y probarlo: ver [TP_Final/MLOps2_TP_Final/README.md](TP_Final/MLOps2_TP_Final/README.md).
 - Diseño general: ver [Diseño de arquitectura.md](TP_Final/MLOps2_TP_Final/Diseño%20de%20arquitectura.md).
 
-> **Estado:** incluye lo visto en las clases 1 a 7.
+> **Estado:** terminado. Incluye lo visto en todas las clases de la materia (1 a 7).
