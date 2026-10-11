@@ -114,8 +114,7 @@ año 3000 o un motor ilegible, `422`. `GET /health` y `/docs` son públicos.
 introspección no sirve (ver sección 6).
 
 ```bash
-curl -s http://localhost:8001/graphql -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"query": "{ modelInfo { modelName modelVersion nFeatures } }"}'
+windows CMD (no powershell) — curl -s http://localhost:8001/graphql -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"query\": \"{ modelInfo { modelName modelVersion nFeatures } }\"}"
 ```
 
 Otras consultas para mandar en el campo `query`:

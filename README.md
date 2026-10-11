@@ -16,7 +16,7 @@ TPs/
 ├── clase6/      Mini TP 6: modelo guardado y servido desde un Data Lake (MinIO)
 ├── clase7/      Mini TP 7: seguridad con SAIF de las 6 capas (REST, GraphQL, gRPC, streaming, federado, data lake)
 └── TP_Final/
-    ├── MLOps1_final/                         TP final de MLOps 1 (base de referencia)
+    ├── MLOps1_final/      TP final de MLOps 1 (base de referencia)
     └── MLOps2_TP_Final/   TP final de MLOps 2 (en progreso)
 ```
 
