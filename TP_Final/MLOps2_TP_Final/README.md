@@ -16,6 +16,8 @@ Además incluye:
   límites, TLS en gRPC, firma de los eventos de streaming, un usuario de MinIO por servicio,
   integridad del modelo y auditoría.
 
+**Presentación del TP:** [Google Slides](https://docs.google.com/presentation/d/1fZpvGuIXBnAO-tiywhd0E4AE7SJbv0w5XVqIrQOPSNQ/edit).
+
 | Capa | Puerto (esta carpeta) | Origen del código | Qué demuestra |
 |---|---|---|---|
 | **REST** | 8010 | `rest_service/` → mismo código de `../MLOps1_final/api` (no se reimplementa), Dockerfile propio | petición → respuesta simple ([`clase1/API_MLOPS2.ipynb`](../../clase1/API_MLOPS2.ipynb)) |
