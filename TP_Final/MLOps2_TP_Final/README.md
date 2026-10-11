@@ -4,7 +4,8 @@ Implementación de [`Diseño de arquitectura.md`](./Diseño%20de%20arquitectura.
 acceder al mismo modelo (`xgb_best`) del TP integrador (`../MLOps1_final`), una por cada mini-TP de
 la cursada. Ninguna capa reimplementa la carga ni el scoring del modelo — todas reusan
 `api/app/predict.py` y `common/` de `MLOps1_final` sin copiarlos (desde la clase 6, con un
-`predict.py` de MLOps2 que solo cambia de dónde se lee la metadata del modelo, ver sección 5).
+`predict.py` de MLOps2 que lee la metadata del modelo de MLflow, ver sección 5, y desde la clase 7
+verifica el hash del modelo antes de cargarlo, ver sección 6).
 
 Además incluye:
 - el **entrenamiento federado** de la clase 5 (sección 4): no es una capa de acceso sino otra
@@ -28,7 +29,8 @@ Además incluye:
 > REST no es una capa nueva: reusa el mismo código que ya existía en `MLOps1_final/api`, solo
 > expuesto acá en el puerto 8010 (no 8000) para poder levantar las 4 capas desde este único
 > compose sin chocar de puerto si `MLOps1_final` también tiene su propia API arriba a la vez.
-> Tiene un Dockerfile propio solo para usar el `predict.py` de la clase 6.
+> Tiene un Dockerfile propio para usar el `predict.py` de MLOps2 y, desde la clase 7, para servir la
+> API envuelta por la capa de seguridad (sin modificar su código).
 > Ver [`rest_service/README.md`](./rest_service/README.md).
 
 ## 1. Requisitos previos
@@ -87,6 +89,11 @@ TOKEN=$(docker compose --profile manual run --rm emitir-token jaime analista | t
 $TOKEN = docker compose --profile manual run --rm emitir-token jaime analista | Select-Object -Last 1
 ```
 
+En Windows CMD, correr `docker compose --profile manual run --rm emitir-token jaime analista`,
+copiar el token que imprime y hacer `set TOKEN=<el token>`.
+
+Para probar los permisos, emitir también uno de `admin` (por ejemplo `emitir-token ana admin`).
+
 **REST** \
 Git Bash / Linux — `curl -X POST http://localhost:8010/predict -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
   "name": "Maruti Swift Dzire VDI",
@@ -103,18 +110,36 @@ Git Bash / Linux — `curl -X POST http://localhost:8010/predict -H "Authorizati
   "seats": 5
 }'`
 
-windows CMD (no powershell) — primero `set TOKEN=<el token>` y después
-`curl -X POST http://localhost:8010/predict -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"name\": \"Maruti Swift Dzire VDI\", \"year\": 2014, \"km_driven\": 145500, \"fuel\": \"Diesel\", \"seller_type\": \"Individual\", \"transmission\": \"Manual\", \"owner\": \"First Owner\", \"mileage\": \"23.4 kmpl\", \"engine\": \"1248 CC\", \"max_power\": \"74 bhp\", \"torque\": \"190Nm@ 2000rpm\", \"seats\": 5}"`
+windows CMD (no powershell) — `curl -X POST http://localhost:8010/predict -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"name\": \"Maruti Swift Dzire VDI\", \"year\": 2014, \"km_driven\": 145500, \"fuel\": \"Diesel\", \"seller_type\": \"Individual\", \"transmission\": \"Manual\", \"owner\": \"First Owner\", \"mileage\": \"23.4 kmpl\", \"engine\": \"1248 CC\", \"max_power\": \"74 bhp\", \"torque\": \"190Nm@ 2000rpm\", \"seats\": 5}"`
 
-(mismos endpoints y payload que `MLOps1_final/api`, ver su README). Sin token responde `401`; con un
-año 3000 o un motor ilegible, `422`. `GET /health` y `/docs` son públicos.
+PowerShell:
+
+```powershell
+$auto = @{ name = "Maruti Swift Dzire VDI"; year = 2014; km_driven = 145500; fuel = "Diesel"
+           seller_type = "Individual"; transmission = "Manual"; owner = "First Owner"
+           mileage = "23.4 kmpl"; engine = "1248 CC"; max_power = "74 bhp"
+           torque = "190Nm@ 2000rpm"; seats = 5 } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8010/predict `
+  -Headers @{ Authorization = "Bearer $TOKEN" } -ContentType "application/json" -Body $auto
+```
+
+Son los mismos endpoints y el mismo payload que `MLOps1_final/api` (ver su README). Sin token
+responde `401`; con un año 3000 o un motor ilegible, `422`. `GET /health` y `/docs` son públicos.
 
 **GraphQL** — `POST http://localhost:8001/graphql` con el header `Authorization: Bearer <token>`
 (con curl, o con un cliente como Postman, Insomnia o Altair). GraphiQL está apagado: sin
 introspección no sirve (ver sección 6).
 
-```bash
-windows CMD (no powershell) — curl -s http://localhost:8001/graphql -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"query\": \"{ modelInfo { modelName modelVersion nFeatures } }\"}"
+Git Bash / Linux — `curl -s http://localhost:8001/graphql -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"query": "{ modelInfo { modelName modelVersion nFeatures } }"}'`
+
+windows CMD (no powershell) — `curl -s http://localhost:8001/graphql -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"query\": \"{ modelInfo { modelName modelVersion nFeatures } }\"}"`
+
+PowerShell:
+
+```powershell
+$q = @{ query = "{ modelInfo { modelName modelVersion nFeatures } }" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8001/graphql `
+  -Headers @{ Authorization = "Bearer $TOKEN" } -ContentType "application/json" -Body $q | ConvertTo-Json -Depth 5
 ```
 
 Otras consultas para mandar en el campo `query`:
@@ -150,7 +175,9 @@ query {
 CA de prueba y manda el token:
 
 ```bash
-docker compose exec -e TOKEN="$TOKEN" grpc python -m app.client_example
+docker compose exec -e TOKEN="$TOKEN" grpc python -m app.client_example     # Git Bash / Linux
+docker compose exec -e TOKEN=%TOKEN% grpc python -m app.client_example       # Windows CMD
+docker compose exec -e TOKEN=$TOKEN grpc python -m app.client_example        # PowerShell
 ```
 
 **Streaming** — el consumidor ya está escuchando el topic `autos`. El productor de prueba firma cada
@@ -293,7 +320,7 @@ que reemplaza a la original al construir cada imagen: el código de las capas no
 | Contenedor / capa | Qué hace con el lake |
 |---|---|
 | `lake-preparar` | Copia el dataset crudo a `raw`, guarda las features en `curated` y agrega al run del modelo en Production la metadata y (clase 7) el hash del modelo con los rangos de entrada. El bucket lo crea `seguridad-minio`. Se puede correr varias veces |
-| las 4 capas | Bajan el modelo de MLflow y leen su metadata del mismo run |
+| las 4 capas | Bajan el modelo de MLflow, verifican su hash (clase 7) y leen su metadata del mismo run |
 | `streaming-consumer` | Guarda cada evento con su predicción en `raw/streaming/`, separado por fecha, por lotes de 500 (o tras 10 s sin eventos). Usa un grupo de consumidores y confirma a Redpanda hasta dónde leyó recién después de guardar cada lote: si se reinicia, sigue desde ahí sin perder los eventos que tenía juntados |
 | `graphql` | La query `prediccionesStreaming` lee esos archivos del lake |
 
@@ -305,8 +332,9 @@ docker compose restart                                 # para que las capas lean
 docker compose run --rm streaming-producer             # genera eventos que se guardan en el lake
 ```
 
-En los logs de cada capa aparece `metadata leída de MLflow (lake_metadata.json)`. El contenido del
-lake se ve en la consola de MinIO (`http://localhost:9001`, bucket `datalake`).
+En los logs de cada capa aparecen `integridad verificada (seguridad_modelo.json)` y
+`metadata leída de MLflow (lake_metadata.json)`. El contenido del lake se ve en la consola de MinIO
+(`http://localhost:9001`, bucket `datalake`).
 
 > **Si Airflow entrena una versión nueva**, su run todavía no tiene la metadata ni el hash. Hasta que
 > se vuelva a correr `lake-preparar`, las capas calculan la metadata como antes, y el modelo se carga
@@ -333,7 +361,7 @@ practicado en los seis notebooks del Mini-TP 7 ([`clase7/`](../../clase7/)), sig
 
 | Paso | Qué hace |
 |---|---|
-| `cp .env.example .env` | Secretos del TP: `JWT_SECRET`, claves de las concesionarias (`HMAC_CLAVES`), usuarios de MinIO, `EXIGIR_INTEGRIDAD`. El `.env` no se sube al repo |
+| `cp .env.example .env` | Secretos y ajustes del TP: `JWT_SECRET`, cuánto dura un token (`JWT_MINUTOS`, 60), pedidos por minuto en REST (`LIMITE_POR_MINUTO`, 60), claves de las concesionarias (`HMAC_CLAVES`), usuarios de MinIO y `EXIGIR_INTEGRIDAD`. El `.env` no se sube al repo, y cada contenedor recibe solo las variables que usa |
 | `seguridad-certs` | Crea una CA de prueba y el certificado TLS del servidor gRPC en el volumen `certs` |
 | `seguridad-minio` | Crea un usuario de MinIO por servicio con su política, el bucket `datalake` y su versionado |
 
@@ -366,8 +394,9 @@ Cualquier otro rol (por ejemplo `invitado`) no puede hacer nada.
 
 **Integridad del modelo.** `lake-preparar` guarda en el run de MLflow del modelo el SHA-256 de sus
 archivos (`seguridad_modelo.json`). Al arrancar, cada capa baja el modelo, calcula su hash y lo
-compara **antes** de cargarlo: si alguien lo cambió, no se carga (`/health` muestra
-`model_loaded: false` y las predicciones dan `503`). Funciona porque las capas solo pueden **leer**
+compara **antes** de cargarlo: si alguien lo cambió, no se carga. En ese caso REST responde
+`503` (y su `/health` muestra `model_loaded: false`), GraphQL devuelve un error, y gRPC y el
+consumidor de streaming no arrancan (se reinician hasta que se corrija). Funciona porque las capas solo pueden **leer**
 el bucket de modelos, y cada contenedor recibe solo sus propios secretos (no el `.env` entero): un
 servicio comprometido no puede cambiar ni el modelo ni su hash. Ojo: la API de MLflow no tiene
 autenticación dentro de la red Docker, así que quien llegue a esa red podría cambiar qué versión
@@ -382,8 +411,9 @@ En los dos casos, si el hash existe y no coincide, el modelo no se carga.
 
 **Auditoría.** Cada capa guarda en el lake (`raw/auditoria/capa=<capa>/fecha=.../`) quién hizo
 qué y con qué resultado: fecha y hora, usuario, rol, acción, código de respuesta, hash de la entrada
-y versión del modelo. **Nunca** los datos del auto. Se consulta con la query `auditoria` de
-GraphQL (solo `admin`) o en la consola de MinIO.
+y versión del modelo. Los datos del auto **no** se guardan: solo su hash (el detalle de un
+rechazo puede nombrar el campo que falló, por ejemplo `year`). Se consulta con la query `auditoria`
+de GraphQL (solo `admin`) o en la consola de MinIO.
 
 **Cómo verificarlo:**
 
@@ -407,7 +437,10 @@ Production.
 - **Airflow y MLflow** (de `MLOps1_final`) siguen usando `minioadmin`, y la API de MLflow no tiene
   autenticación.
 - gRPC usa TLS pero no **mTLS**: el cliente se identifica con el token, no con un certificado.
-- El límite de pedidos de REST es **por contenedor** (en memoria). Con varias réplicas habría que
-  llevarlo a Redis o a un API gateway.
+- El límite de pedidos por usuario existe solo en **REST**, y es **por contenedor** (en memoria).
+  GraphQL y gRPC se protegen por costo y por tamaño, pero no cuentan pedidos por usuario. Con
+  varias réplicas, el límite habría que llevarlo a Redis o a un API gateway.
+- Si falla la verificación del modelo, gRPC y el consumidor de streaming se reinician en bucle en
+  vez de quedar levantados respondiendo "no disponible", como hace REST.
 - Los secretos están en un `.env`. En producción irían a un gestor de secretos (Vault, AWS
   Secrets Manager) y los certificados los emitiría una CA interna.
