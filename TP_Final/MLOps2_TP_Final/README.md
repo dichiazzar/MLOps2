@@ -16,7 +16,7 @@ Además incluye:
   límites, TLS en gRPC, firma de los eventos de streaming, un usuario de MinIO por servicio,
   integridad del modelo y auditoría.
 
-**Presentación del TP:** [Google Slides](https://docs.google.com/presentation/d/1fZpvGuIXBnAO-tiywhd0E4AE7SJbv0w5XVqIrQOPSNQ/edit).
+**Presentación del TP:** [Google Slides](https://docs.google.com/presentation/d/1fZpvGuIXBnAO-tiywhd0E4AE7SJbv0w5XVqIrQOPSNQ/edit) · en PowerPoint: [presentacion/TP Final MLOps II.pptx](./presentacion/TP%20Final%20MLOps%20II.pptx).
 
 | Capa | Puerto (esta carpeta) | Origen del código | Qué demuestra |
 |---|---|---|---|
