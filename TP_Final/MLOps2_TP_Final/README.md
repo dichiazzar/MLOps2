@@ -18,6 +18,8 @@ Además incluye:
 
 **Presentación del TP:** [Google Slides](https://docs.google.com/presentation/d/1fZpvGuIXBnAO-tiywhd0E4AE7SJbv0w5XVqIrQOPSNQ/edit) · en PowerPoint: [presentacion/TP Final MLOps II.pptx](./presentacion/TP%20Final%20MLOps%20II.pptx).
 
+**Demo grabada** (7:48, con audio): [presentacion/demo/demo_editado.mp4](./presentacion/demo/demo_editado.mp4), recorre el TP en el orden de la materia; cómo se grabó, en el [guion](./presentacion/demo/GUION.md).
+
 | Capa | Puerto (esta carpeta) | Origen del código | Qué demuestra |
 |---|---|---|---|
 | **REST** | 8010 | `rest_service/` → mismo código de `../MLOps1_final/api` (no se reimplementa), Dockerfile propio | petición → respuesta simple ([`clase1/API_MLOPS2.ipynb`](../../clase1/API_MLOPS2.ipynb)) |

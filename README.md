@@ -76,5 +76,6 @@ MinIO; el modelo se verifica con un hash antes de cargarse; y todo queda en un r
 - Cómo levantarlo y probarlo: ver [TP_Final/MLOps2_TP_Final/README.md](TP_Final/MLOps2_TP_Final/README.md).
 - Diseño general: ver [Diseño de arquitectura.md](TP_Final/MLOps2_TP_Final/Diseño%20de%20arquitectura.md).
 - Presentación del TP final: [Google Slides](https://docs.google.com/presentation/d/1fZpvGuIXBnAO-tiywhd0E4AE7SJbv0w5XVqIrQOPSNQ/edit) (también en PowerPoint: [TP Final MLOps II.pptx](TP_Final/MLOps2_TP_Final/presentacion/TP%20Final%20MLOps%20II.pptx)).
+- Demo grabada del TP final (7:48): [demo_editado.mp4](TP_Final/MLOps2_TP_Final/presentacion/demo/demo_editado.mp4).
 
 > **Estado:** terminado. Incluye lo visto en todas las clases de la materia (1 a 7).
