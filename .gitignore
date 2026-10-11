@@ -1,3 +1,6 @@
 TP_Final/MLOps2_TP_Final/.env
 # Documentos de trabajo (spec y plan de implementación): no se publican
 TP_Final/MLOps2_TP_Final/docs/
+
+# Grabación original de la demo (sin editar): queda local, se publica demo_editado.mp4
+TP_Final/MLOps2_TP_Final/presentacion/demo/demo.mp4
